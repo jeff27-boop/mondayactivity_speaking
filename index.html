@@ -1,0 +1,3149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>WAIT! Runner — Hang on! vs Hold on! (等一下！)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Fredoka & Nunito for super friendly, rounded elementary school readability -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      font-family: 'Fredoka', 'Nunito', 'Comic Sans MS', sans-serif;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #87CEFA;
+      touch-action: manipulation;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Tactile chunky 3D-style game buttons */
+    .btn-chunky {
+      transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease;
+    }
+    .btn-chunky:active {
+      transform: translateY(4px) scale(0.97);
+    }
+
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-7px); }
+    }
+    .animate-float {
+      animation: floatSlow 2.6s ease-in-out infinite;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.75); opacity: 0; }
+      70% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes shakeGentle {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+    .animate-shake {
+      animation: shakeGentle 0.42s ease-in-out;
+    }
+
+    @keyframes micPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55); }
+      50% { transform: scale(1.06); box-shadow: 0 0 0 14px rgba(244, 63, 94, 0); }
+    }
+    .animate-mic-pulse {
+      animation: micPulse 1.4s ease-in-out infinite;
+    }
+
+    /* Custom scrollbar for study modal on small screens */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.4);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #93c5fd;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body class="relative w-full h-full overflow-hidden">
+
+  <!-- Fullscreen Pseudo-3D Runner Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ==================== TOP HUD (Visible during Gameplay) ==================== -->
+  <div id="hudLayer" class="hidden fixed top-0 left-0 right-0 z-20 p-2 sm:p-4 pointer-events-none">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      
+      <!-- Left: Score, Streak & Mastery Progress -->
+      <div class="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+        <!-- Score Pill -->
+        <div class="bg-white/95 backdrop-blur border-4 border-amber-400 rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-lg flex items-center gap-2">
+          <svg class="w-6 h-6 sm:w-7 sm:h-7 shrink-0" viewBox="0 0 36 36"><path d="M18 3l4.3 8.8 9.7 1.4-7 6.8 1.7 9.6L18 25l-8.7 4.6 1.7-9.6-7-6.8 9.7-1.4z" fill="#facc15" stroke="#d97706" stroke-width="2.2" stroke-linejoin="round"/><circle cx="15.5" cy="17" r="1.4" fill="#78350f"/><circle cx="20.5" cy="17" r="1.4" fill="#78350f"/><path d="M16.5 19.5c.8 1 2.2 1 3 0" stroke="#78350f" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>
+          <div>
+            <div class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-600 leading-none">Score</div>
+            <div id="hudScore" class="text-lg sm:text-2xl font-extrabold text-slate-800 leading-tight">0</div>
+          </div>
+        </div>
+
+        <!-- Streak Pill -->
+        <div class="bg-white/95 backdrop-blur border-4 border-rose-400 rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-lg flex items-center gap-1.5">
+          <svg class="w-6 h-6 sm:w-7 sm:h-7 shrink-0" viewBox="0 0 36 36"><path d="M18 3c3 6 10 10 10 18a10 10 0 1 1-20 0c0-4 2-7 4-9 0 3 2 4 3 4-1-5 1-10 3-13z" fill="#fb7185" stroke="#e11d48" stroke-width="2"/><path d="M18 16c2 3 5 5 5 9a5 5 0 1 1-10 0c0-3 2-6 5-9z" fill="#fde047"/></svg>
+          <div>
+            <div class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-500 leading-none">Streak</div>
+            <div id="hudStreak" class="text-lg sm:text-2xl font-extrabold text-slate-800 leading-tight">0</div>
+          </div>
+        </div>
+
+        <!-- Question Mastery Pill -->
+        <div class="bg-white/95 backdrop-blur border-4 border-emerald-400 rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-lg flex items-center gap-2">
+          <svg class="w-6 h-6 sm:w-7 sm:h-7 shrink-0" viewBox="0 0 36 36"><circle cx="18" cy="18" r="14" fill="#a7f3d0" stroke="#10b981" stroke-width="2.5"/><circle cx="18" cy="18" r="8" fill="#ffffff" stroke="#10b981" stroke-width="2"/><circle cx="18" cy="18" r="3.5" fill="#f43f5e"/><path d="M24 12l7-7m0 0h-5m5 0v5" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>
+            <div class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-emerald-600 leading-none">Mastered</div>
+            <div id="hudProgress" class="text-lg sm:text-2xl font-extrabold text-slate-800 leading-tight">0 / 6</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Teacher & Student Controls (Finish Endless, Speed, Sound, Study, Edit, Pause) -->
+      <div class="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+        <!-- Finish Endless Button (Only visible in Endless Practice Mode) -->
+        <button id="btnFinishEndless" onclick="triggerVictory()" title="Finish & See Final Score"
+          class="hidden btn-chunky bg-gradient-to-b from-amber-300 to-amber-400 hover:from-amber-200 hover:to-amber-300 border-b-4 border-amber-600 text-amber-950 font-black text-xs sm:text-sm px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1">
+          <span>🏁</span>
+          <span>Finish & Score</span>
+        </button>
+
+        <!-- Speed Mode Toggle (Relaxed vs Normal) -->
+        <button id="btnSpeedToggle" onclick="toggleSpeedMode()" title="Switch Speed for Grades 1-2 or 3-6"
+          class="btn-chunky bg-sky-100 hover:bg-sky-200 border-b-4 border-sky-400 text-sky-900 font-bold text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1.5">
+          <span id="speedIcon">🐢</span>
+          <span id="speedLabel">Relaxed</span>
+        </button>
+
+        <!-- Sound Effects (SFX) Toggle -->
+        <button id="btnSfxToggle" onclick="toggleSfx()" title="Toggle Game Sound Effects"
+          class="btn-chunky bg-amber-100 hover:bg-amber-200 border-b-4 border-amber-400 text-amber-900 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1">
+          <span id="sfxIcon">🎵</span>
+          <span id="sfxLabel" class="hidden sm:inline">SFX: ON</span>
+        </button>
+
+        <!-- Voice / Speaking (TTS) Toggle -->
+        <button id="btnVoiceToggle" onclick="toggleVoice()" title="Toggle Spoken English Voice"
+          class="btn-chunky bg-emerald-100 hover:bg-emerald-200 border-b-4 border-emerald-400 text-emerald-900 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1">
+          <span id="voiceIcon">💬</span>
+          <span id="voiceLabel" class="hidden sm:inline">Voice: ON</span>
+        </button>
+
+        <!-- Classroom Answer Mode Toggle (Speak vs Tap/Click) -->
+        <button id="btnAnswerModeToggle" onclick="toggleAnswerMode()" title="Switch between Speaking Answers and Tapping Answers"
+          class="btn-chunky bg-rose-100 hover:bg-rose-200 border-b-4 border-rose-400 text-rose-900 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1">
+          <span id="answerModeIcon">🎤</span>
+          <span id="answerModeLabel" class="hidden sm:inline">Answer: Speak</span>
+        </button>
+
+        <!-- Quick Study Button -->
+        <button onclick="openStudyModal(true)" title="Quick Review Chart"
+          class="btn-chunky bg-purple-100 hover:bg-purple-200 border-b-4 border-purple-400 text-purple-900 font-bold text-xs sm:text-sm px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1">
+          <span>📚</span>
+          <span class="hidden sm:inline">Review</span>
+        </button>
+
+        <!-- Teacher Edit Sentences Button -->
+        <button onclick="openEditorModal(true)" title="Edit Sentences & Choices"
+          class="btn-chunky bg-amber-100 hover:bg-amber-200 border-b-4 border-amber-400 text-amber-900 font-bold text-xs sm:text-sm px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1">
+          <span>🖍️</span>
+          <span class="hidden md:inline">Edit</span>
+        </button>
+
+        <!-- Pause / Menu Button -->
+        <button onclick="togglePause()" title="Pause Game"
+          class="btn-chunky bg-white hover:bg-slate-100 border-b-4 border-slate-300 text-slate-700 font-bold text-base sm:text-lg p-2 sm:p-2.5 rounded-2xl shadow-md">
+          ⏸️
+        </button>
+      </div>
+    </div>
+
+    <!-- Subtle On-Screen Lane Tap Helper Banner at Bottom when Running -->
+    <div id="runningHelper" class="fixed bottom-3 left-0 right-0 flex justify-center pointer-events-none px-4">
+      <div class="bg-white/85 backdrop-blur-sm border-2 border-white rounded-full px-4 py-1.5 shadow-md text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-3">
+        <span>👈 Tap Left / Center / Right Lane 👉</span>
+        <span class="hidden md:inline text-slate-400">|</span>
+        <span class="hidden md:inline">Arrow Keys ◀ ▲ ▶ to Dodge & Jump!</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PRACTICE CHALLENGE OVERLAY (Gate Slow-Mo) ==================== -->
+  <div id="practiceOverlay" class="hidden fixed inset-0 z-30 flex flex-col justify-between p-3 sm:p-6 pointer-events-none">
+    
+    <!-- Top Prompt Card -->
+    <div id="promptCard" class="animate-pop max-w-2xl w-full mx-auto mt-14 sm:mt-16 bg-white/95 backdrop-blur-md border-4 border-indigo-400 rounded-3xl p-4 sm:p-6 shadow-2xl pointer-events-auto text-center">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <span class="bg-indigo-100 text-indigo-700 font-extrabold text-xs sm:text-sm px-3 py-1 rounded-full">
+          ✨ Practice Gate! Choose the right "WAIT"
+        </span>
+        <button onclick="speakCurrentPrompt()" class="btn-chunky bg-amber-400 hover:bg-amber-500 border-b-4 border-amber-600 text-slate-900 font-bold text-xs sm:text-sm px-3 py-1.5 rounded-full flex items-center gap-1 shadow">
+          <span>🔊</span>
+          <span>Listen</span>
+        </button>
+      </div>
+
+      <!-- English Sentence with Blank -->
+      <div id="promptEnglish" class="text-2xl sm:text-4xl font-extrabold text-slate-800 my-2 tracking-wide">
+        <span class="inline-block bg-amber-100 border-b-4 border-amber-400 text-amber-700 px-4 py-0.5 rounded-xl">______</span>! I'm coming!
+      </div>
+
+      <!-- Traditional Chinese Hint -->
+      <div id="promptChinese" class="text-lg sm:text-2xl font-bold text-indigo-600 bg-indigo-50 inline-block px-4 py-1 rounded-2xl">
+        等一下！我來了！
+      </div>
+
+      <!-- Inclusive Microphone & Speech Practice Bar (Visible in Speak Mode) -->
+      <div id="micPracticeBar" class="hidden mt-3 bg-gradient-to-r from-rose-50 via-amber-50 to-sky-50 border-2 border-rose-200 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center gap-1.5">
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          <button id="btnMicListen" onclick="toggleSpeechRecognition()"
+            class="btn-chunky bg-gradient-to-b from-rose-400 to-rose-500 hover:from-rose-300 hover:to-rose-400 border-b-4 border-rose-700 text-white font-black text-sm sm:text-base px-4 py-2 rounded-full shadow-md flex items-center gap-2">
+            <span id="micBtnIcon">🎤</span>
+            <span id="micBtnText">Tap to Speak!</span>
+          </button>
+          <span class="text-xs sm:text-sm font-extrabold text-slate-600">
+            Say <span id="micHint0" class="text-rose-600">"Hang on!"</span> or <span id="micHint1" class="text-sky-600">"Hold on!"</span> (or tap below anytime!)
+          </span>
+        </div>
+        <div id="micTranscriptBox" class="text-xs sm:text-sm font-bold text-slate-500 min-h-[20px]">
+          🎙️ Ready to listen — take your time, any pace is great!
+        </div>
+      </div>
+
+      <!-- Feedback Banner (Shown if wrong answer tapped) -->
+      <div id="feedbackBanner" class="hidden mt-3 p-2.5 sm:p-3 rounded-2xl text-sm sm:text-base font-bold transition-all">
+      </div>
+    </div>
+
+    <!-- Bottom Giant 2-Choice Touch Buttons (Left Side vs Right Side) -->
+    <div class="max-w-4xl w-full mx-auto mb-2 sm:mb-6 pointer-events-auto">
+      <div id="gateInstructionText" class="text-center text-white font-extrabold text-sm sm:text-base drop-shadow mb-2">
+        👇 Tap the matching answer or steer Left / Right into the portal! 👇
+      </div>
+      <div class="grid grid-cols-2 gap-4 sm:gap-8 max-w-2xl mx-auto">
+        <!-- Choice 0: Left Portal (Hang on!) -->
+        <button id="choiceBtn0" onclick="submitAnswer(0)"
+          class="btn-chunky bg-gradient-to-b from-pink-400 to-rose-500 hover:from-pink-300 hover:to-rose-400 border-b-8 border-rose-700 text-white rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col items-center justify-center text-center min-h-[104px] sm:min-h-[126px]">
+          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider bg-white/25 px-3 py-0.5 rounded-full mb-1.5">👈 Left Portal</span>
+          <span id="choiceBtn0Title" class="text-2xl sm:text-3xl font-black leading-tight drop-shadow">Hang on!</span>
+          <span id="choiceBtn0Sub" class="text-xs sm:text-sm font-bold text-rose-100 mt-1">Wait for a short time</span>
+        </button>
+
+        <!-- Choice 1: Right Portal (Hold on!) -->
+        <button id="choiceBtn1" onclick="submitAnswer(1)"
+          class="btn-chunky bg-gradient-to-b from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 border-b-8 border-blue-700 text-white rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col items-center justify-center text-center min-h-[104px] sm:min-h-[126px]">
+          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider bg-white/25 px-3 py-0.5 rounded-full mb-1.5">Right Portal 👉</span>
+          <span id="choiceBtn1Title" class="text-2xl sm:text-3xl font-black leading-tight drop-shadow">Hold on!</span>
+          <span id="choiceBtn1Sub" class="text-xs sm:text-sm font-bold text-sky-100 mt-1">Wait a moment / Don't go</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SUPER BOOST CELEBRATION TOAST ==================== -->
+  <div id="celebrationToast" class="hidden fixed top-24 left-0 right-0 z-30 flex justify-center pointer-events-none px-4">
+    <div class="animate-pop bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-300 border-4 border-white rounded-3xl px-6 py-3 shadow-2xl text-center">
+      <div id="celebrationSentence" class="text-lg sm:text-2xl font-black text-slate-900">"Hang on! I'm coming!"</div>
+      <div id="celebrationSubtext" class="text-xs sm:text-sm font-extrabold text-amber-900">+50 Bonus Points & Shield Active!</div>
+    </div>
+  </div>
+
+  <!-- ==================== START / TITLE SCREEN ==================== -->
+  <div id="startScreen" class="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6 bg-sky-900/35 backdrop-blur-xs overflow-y-auto">
+    <div class="animate-pop bg-white/95 border-4 border-white rounded-[2rem] max-w-2xl w-full p-5 sm:p-7 shadow-2xl text-center my-auto">
+      <div class="inline-flex items-center gap-2 bg-amber-100 border-2 border-amber-300 text-amber-800 font-extrabold text-xs sm:text-sm px-4 py-1 rounded-full mb-2">
+        <span>🌈 Elementary English Runner</span>
+        <span>•</span>
+        <span>等一下！</span>
+      </div>
+
+      <h1 class="text-3xl sm:text-5xl font-black text-slate-800 tracking-tight">
+        WAIT! <span class="text-rose-500">Runner</span>
+      </h1>
+
+      <div class="flex flex-wrap items-center justify-center gap-2 mt-2 mb-4">
+        <span id="startBadge0" class="bg-rose-100 text-rose-700 border-2 border-rose-300 font-extrabold text-xs sm:text-sm px-3 py-1 rounded-full">1. Hang on!</span>
+        <span class="font-black text-slate-400">VS</span>
+        <span id="startBadge1" class="bg-sky-100 text-sky-700 border-2 border-sky-300 font-extrabold text-xs sm:text-sm px-3 py-1 rounded-full">2. Hold on!</span>
+      </div>
+
+      <!-- Character Selector (4 Super Cute Kawaii Runners!) -->
+      <div class="bg-slate-50 border-2 border-slate-200 rounded-3xl p-3 sm:p-4 mb-5">
+        <div class="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-500 mb-2.5">
+          ✨ Choose Your Super Cute Runner! ✨
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          <!-- 1. Mochi Bunny -->
+          <button id="charBtn-bunny" onclick="selectCharacter('bunny')"
+            class="char-card btn-chunky border-4 border-rose-400 bg-rose-50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center shadow-md">
+            <svg class="w-14 h-14 sm:w-16 sm:h-16 animate-float" viewBox="0 0 80 80">
+              <ellipse cx="29" cy="20" rx="7" ry="18" transform="rotate(-10 29 20)" fill="#fff" stroke="#334155" stroke-width="2.5"/>
+              <ellipse cx="29" cy="20" rx="3.5" ry="12" transform="rotate(-10 29 20)" fill="#fda4af"/>
+              <ellipse cx="51" cy="20" rx="7" ry="18" transform="rotate(10 51 20)" fill="#fff" stroke="#334155" stroke-width="2.5"/>
+              <ellipse cx="51" cy="20" rx="3.5" ry="12" transform="rotate(10 51 20)" fill="#fda4af"/>
+              <circle cx="40" cy="48" r="22" fill="#fff" stroke="#334155" stroke-width="2.5"/>
+              <!-- Strawberry clip -->
+              <circle cx="53" cy="31" r="5" fill="#fb7185" stroke="#be123c" stroke-width="1.5"/>
+              <path d="M50 26l3 2 3-2" stroke="#16a34a" stroke-width="2" fill="none"/>
+              <!-- Face -->
+              <circle cx="32" cy="47" r="3" fill="#1e293b"/><circle cx="31" cy="46" r="1.1" fill="#fff"/>
+              <circle cx="48" cy="47" r="3" fill="#1e293b"/><circle cx="47" cy="46" r="1.1" fill="#fff"/>
+              <ellipse cx="26" cy="53" rx="4.5" ry="2.8" fill="#fda4af" opacity="0.7"/>
+              <ellipse cx="54" cy="53" rx="4.5" ry="2.8" fill="#fda4af" opacity="0.7"/>
+              <path d="M37 54q3 3 6 0" stroke="#1e293b" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+            </svg>
+            <div class="font-extrabold text-slate-800 text-xs sm:text-sm mt-1">Mochi Bunny</div>
+            <div class="char-sub text-[11px] font-bold text-rose-500">Selected ✓</div>
+          </button>
+
+          <!-- 2. Biscuit Puppy -->
+          <button id="charBtn-puppy" onclick="selectCharacter('puppy')"
+            class="char-card btn-chunky border-4 border-transparent bg-white hover:bg-amber-50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center shadow-sm">
+            <svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 80 80">
+              <ellipse cx="18" cy="46" rx="8" ry="15" transform="rotate(18 18 46)" fill="#b45309" stroke="#334155" stroke-width="2.5"/>
+              <ellipse cx="62" cy="46" rx="8" ry="15" transform="rotate(-18 62 46)" fill="#b45309" stroke="#334155" stroke-width="2.5"/>
+              <circle cx="40" cy="46" r="22" fill="#fef3c7" stroke="#334155" stroke-width="2.5"/>
+              <circle cx="48" cy="39" r="7" fill="#d97706" opacity="0.35"/>
+              <circle cx="32" cy="45" r="3" fill="#1e293b"/><circle cx="31" cy="44" r="1.1" fill="#fff"/>
+              <circle cx="48" cy="45" r="3" fill="#1e293b"/><circle cx="47" cy="44" r="1.1" fill="#fff"/>
+              <ellipse cx="40" cy="50" rx="3.5" ry="2.5" fill="#451a03"/>
+              <ellipse cx="26" cy="51" rx="4.2" ry="2.5" fill="#fda4af" opacity="0.65"/>
+              <ellipse cx="54" cy="51" rx="4.2" ry="2.5" fill="#fda4af" opacity="0.65"/>
+              <path d="M36 54q4 4 8 0" stroke="#1e293b" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <!-- Sky collar & star -->
+              <rect x="27" y="65" width="26" height="6" rx="3" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
+              <circle cx="40" cy="69" r="4" fill="#facc15" stroke="#ca8a04" stroke-width="1.2"/>
+            </svg>
+            <div class="font-extrabold text-slate-800 text-xs sm:text-sm mt-1">Biscuit Puppy</div>
+            <div class="char-sub text-[11px] font-bold text-slate-400">Tap to pick</div>
+          </button>
+
+          <!-- 3. Mimi Kitty -->
+          <button id="charBtn-kitty" onclick="selectCharacter('kitty')"
+            class="char-card btn-chunky border-4 border-transparent bg-white hover:bg-purple-50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center shadow-sm">
+            <svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 80 80">
+              <!-- Kitty Ears -->
+              <polygon points="18,38 22,16 37,29" fill="#fff" stroke="#334155" stroke-width="2.5" stroke-linejoin="round"/>
+              <polygon points="22,34 24,21 33,29" fill="#f9a8d4"/>
+              <polygon points="62,38 58,16 43,29" fill="#c084fc" stroke="#334155" stroke-width="2.5" stroke-linejoin="round"/>
+              <circle cx="40" cy="47" r="22" fill="#fff" stroke="#334155" stroke-width="2.5"/>
+              <!-- Calico spot & Lavender Bow -->
+              <path d="M47 26a22 22 0 0 1 14 14c-6 2-13-3-14-14z" fill="#fde68a" opacity="0.85"/>
+              <path d="M52 24l-6-4v8zm0 0l6-4v8z" fill="#c084fc" stroke="#6b21a8" stroke-width="1.5" stroke-linejoin="round"/>
+              <circle cx="52" cy="24" r="2.5" fill="#f472b6"/>
+              <!-- Whiskers -->
+              <path d="M14 47h8M14 52h8M58 47h8M58 52h8" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/>
+              <!-- Eyes & cheeks -->
+              <circle cx="32" cy="46" r="3" fill="#1e293b"/><circle cx="31" cy="45" r="1.1" fill="#fff"/>
+              <circle cx="48" cy="46" r="3" fill="#1e293b"/><circle cx="47" cy="45" r="1.1" fill="#fff"/>
+              <ellipse cx="26" cy="52" rx="4.5" ry="2.5" fill="#f9a8d4" opacity="0.75"/>
+              <ellipse cx="54" cy="52" rx="4.5" ry="2.5" fill="#f9a8d4" opacity="0.75"/>
+              <path d="M36 53q2 2.5 4 0q2 2.5 4 0" stroke="#1e293b" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <!-- Bell -->
+              <circle cx="40" cy="69" r="4.5" fill="#facc15" stroke="#b45309" stroke-width="1.5"/>
+            </svg>
+            <div class="font-extrabold text-slate-800 text-xs sm:text-sm mt-1">Mimi Kitty</div>
+            <div class="char-sub text-[11px] font-bold text-slate-400">Tap to pick</div>
+          </button>
+
+          <!-- 4. Pipi Chick -->
+          <button id="charBtn-chick" onclick="selectCharacter('chick')"
+            class="char-card btn-chunky border-4 border-transparent bg-white hover:bg-yellow-50 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center shadow-sm">
+            <svg class="w-14 h-14 sm:w-16 sm:h-16" viewBox="0 0 80 80">
+              <!-- Cute sprout on head -->
+              <path d="M40 24v-8" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
+              <ellipse cx="34" cy="15" rx="6" ry="3.5" transform="rotate(-25 34 15)" fill="#4ade80" stroke="#15803d" stroke-width="1.5"/>
+              <ellipse cx="46" cy="15" rx="6" ry="3.5" transform="rotate(25 46 15)" fill="#4ade80" stroke="#15803d" stroke-width="1.5"/>
+              <!-- Little wings -->
+              <ellipse cx="17" cy="50" rx="6" ry="10" transform="rotate(20 17 50)" fill="#fde047" stroke="#334155" stroke-width="2.2"/>
+              <ellipse cx="63" cy="50" rx="6" ry="10" transform="rotate(-20 63 50)" fill="#fde047" stroke="#334155" stroke-width="2.2"/>
+              <!-- Fluffy yellow body/head -->
+              <circle cx="40" cy="47" r="22" fill="#fef08a" stroke="#334155" stroke-width="2.5"/>
+              <circle cx="32" cy="45" r="3" fill="#1e293b"/><circle cx="31" cy="44" r="1.1" fill="#fff"/>
+              <circle cx="48" cy="45" r="3" fill="#1e293b"/><circle cx="47" cy="44" r="1.1" fill="#fff"/>
+              <ellipse cx="25" cy="51" rx="4.5" ry="2.6" fill="#fb7185" opacity="0.6"/>
+              <ellipse cx="55" cy="51" rx="4.5" ry="2.6" fill="#fb7185" opacity="0.6"/>
+              <!-- Cute orange beak -->
+              <polygon points="36,51 44,51 40,57" fill="#fb923c" stroke="#c2410c" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            <div class="font-extrabold text-slate-800 text-xs sm:text-sm mt-1">Pipi Chick</div>
+            <div class="char-sub text-[11px] font-bold text-slate-400">Tap to pick</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Speed & Audio Selector Row for Teacher / Student -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mb-5">
+        <span class="text-xs sm:text-sm font-extrabold text-slate-600">Speed:</span>
+        <button id="startSpeedRelaxed" onclick="setSpeedMode('relaxed')"
+          class="btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-emerald-500 text-white border-b-4 border-emerald-700">
+          🐢 Relaxed (Grades 1–2)
+        </button>
+        <button id="startSpeedNormal" onclick="setSpeedMode('normal')"
+          class="btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-slate-200 text-slate-700 border-b-4 border-slate-400">
+          🐇 Normal (Grades 3–6)
+        </button>
+
+        <div class="w-full sm:w-auto flex items-center justify-center gap-2 mt-1 sm:mt-0 sm:ml-2">
+          <button id="startSfxBtn" onclick="toggleSfx()"
+            class="btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-amber-100 hover:bg-amber-200 text-amber-900 border-b-4 border-amber-400 flex items-center gap-1">
+            <span id="startSfxIcon">🔊</span>
+            <span id="startSfxLabel">SFX: ON</span>
+          </button>
+          <button id="startVoiceBtn" onclick="toggleVoice()"
+            class="btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-b-4 border-emerald-400 flex items-center gap-1">
+            <span id="startVoiceIcon">🗣️</span>
+            <span id="startVoiceLabel">Voice: ON</span>
+          </button>
+          <button id="startAnswerModeBtn" onclick="toggleAnswerMode()"
+            class="btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-rose-100 hover:bg-rose-200 text-rose-900 border-b-4 border-rose-400 flex items-center gap-1">
+            <span id="startAnswerModeIcon">🎤</span>
+            <span id="startAnswerModeLabel">Answer: Speak + Tap</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Start Screen Main Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+        <button onclick="openStudyModal(false)"
+          class="btn-chunky bg-purple-100 hover:bg-purple-200 border-b-4 border-purple-400 text-purple-900 font-extrabold py-3.5 px-4 rounded-2xl text-sm sm:text-base shadow">
+          📖 Quick Review
+        </button>
+        <button onclick="openEditorModal(false)"
+          class="btn-chunky bg-amber-100 hover:bg-amber-200 border-b-4 border-amber-400 text-amber-900 font-extrabold py-3.5 px-4 rounded-2xl text-sm sm:text-base shadow">
+          ✏️ Edit Sentences
+        </button>
+        <button onclick="startGame()"
+          class="btn-chunky flex-1 bg-gradient-to-b from-emerald-400 to-green-500 hover:from-emerald-300 hover:to-green-400 border-b-4 border-green-700 text-white font-black py-3.5 px-6 rounded-2xl text-lg sm:text-xl shadow-xl">
+          🚀 Start Running!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== QUICK REVIEW STUDY MODAL ==================== -->
+  <div id="studyModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/55 backdrop-blur-xs overflow-y-auto">
+    <div class="animate-pop bg-white border-4 border-purple-400 rounded-[2rem] max-w-3xl w-full p-5 sm:p-7 shadow-2xl my-auto max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between gap-2 pb-3 border-b-2 border-slate-100">
+        <div>
+          <h2 class="text-2xl sm:text-3xl font-black text-slate-800">📖 Quick Review Chart</h2>
+          <p class="text-xs sm:text-sm font-bold text-slate-500">Tap any sentence to hear American English pronunciation!</p>
+        </div>
+        <button onclick="closeStudyModal()" class="btn-chunky bg-slate-100 hover:bg-slate-200 border-b-4 border-slate-300 text-slate-700 font-black px-4 py-2 rounded-2xl text-sm">
+          ✕ Close
+        </button>
+      </div>
+
+      <div id="studyCardsContainer" class="overflow-y-auto py-4 space-y-4 pr-1">
+        <!-- Populated dynamically by renderStudyCards() -->
+      </div>
+
+      <div class="pt-3 border-t-2 border-slate-100 flex justify-end">
+        <button onclick="closeStudyModal()" class="btn-chunky bg-purple-500 hover:bg-purple-600 border-b-4 border-purple-700 text-white font-extrabold px-6 py-2.5 rounded-2xl text-base shadow">
+          👍 Got it!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TEACHER EDITOR MODAL ==================== -->
+  <div id="editorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/55 backdrop-blur-xs overflow-y-auto">
+    <div class="animate-pop bg-white border-4 border-amber-400 rounded-[2rem] max-w-4xl w-full p-5 sm:p-7 shadow-2xl my-auto max-h-[92vh] flex flex-col">
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b-2 border-slate-100">
+        <div>
+          <h2 class="text-xl sm:text-3xl font-black text-slate-800">✏️ Teacher Sentence Editor</h2>
+          <p class="text-xs sm:text-sm font-bold text-slate-500">Customize the 2 answer choices and practice sentences (saved automatically).</p>
+        </div>
+        <button onclick="closeEditorModal()" class="btn-chunky bg-slate-100 hover:bg-slate-200 border-b-4 border-slate-300 text-slate-700 font-black px-4 py-2 rounded-2xl text-sm">
+          ✕ Cancel
+        </button>
+      </div>
+
+      <div id="editorStatusBanner" class="hidden mt-3"></div>
+
+      <div class="overflow-y-auto py-4 space-y-4 pr-1">
+        <!-- Editable 2 Portal Choices -->
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-3">
+            <div class="text-xs font-extrabold uppercase text-rose-600 mb-1.5">👈 Left Portal Phrase & Meaning</div>
+            <input id="editChoice0Phrase" type="text" oninput="renderEditorSentenceRows()" placeholder="e.g. Hang on"
+              class="w-full px-3 py-2 rounded-xl border border-rose-300 bg-white font-extrabold text-slate-800 text-sm mb-2 focus:outline-none focus:border-rose-500" />
+            <input id="editChoice0Hint" type="text" placeholder="Short meaning hint"
+              class="w-full px-3 py-1.5 rounded-xl border border-rose-200 bg-white font-bold text-slate-600 text-xs focus:outline-none focus:border-rose-500" />
+          </div>
+
+          <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-3">
+            <div class="text-xs font-extrabold uppercase text-sky-600 mb-1.5">👉 Right Portal Phrase & Meaning</div>
+            <input id="editChoice1Phrase" type="text" oninput="renderEditorSentenceRows()" placeholder="e.g. Hold on"
+              class="w-full px-3 py-2 rounded-xl border border-sky-300 bg-white font-extrabold text-slate-800 text-sm mb-2 focus:outline-none focus:border-sky-500" />
+            <input id="editChoice1Hint" type="text" placeholder="Short meaning hint"
+              class="w-full px-3 py-1.5 rounded-xl border border-sky-200 bg-white font-bold text-slate-600 text-xs focus:outline-none focus:border-sky-500" />
+          </div>
+        </div>
+
+        <!-- Editable Practice Sentences List -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs sm:text-sm font-extrabold uppercase text-slate-600">
+              Practice Sentences (<span id="editorSentenceCount">6</span>) — Use <code class="bg-amber-100 px-1.5 py-0.5 rounded text-amber-800">______</code> for the blank
+            </div>
+            <button onclick="addEditorSentenceRow()" class="btn-chunky bg-emerald-100 hover:bg-emerald-200 border-b-2 border-emerald-400 text-emerald-900 font-extrabold text-xs sm:text-sm px-3 py-1.5 rounded-xl">
+              ➕ Add Sentence
+            </button>
+          </div>
+          <div id="editorSentencesList" class="space-y-2">
+            <!-- Populated dynamically by renderEditorSentenceRows() -->
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t-2 border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <button onclick="resetToDefaultLesson()" class="btn-chunky bg-slate-100 hover:bg-slate-200 border-b-4 border-slate-300 text-slate-700 font-extrabold px-4 py-2.5 rounded-2xl text-xs sm:text-sm">
+          🔄 Reset Defaults
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeEditorModal()" class="btn-chunky bg-slate-100 hover:bg-slate-200 border-b-4 border-slate-300 text-slate-700 font-extrabold px-4 py-2.5 rounded-2xl text-sm">
+            Cancel
+          </button>
+          <button onclick="saveTeacherEdits()" class="btn-chunky bg-emerald-500 hover:bg-emerald-600 border-b-4 border-emerald-700 text-white font-extrabold px-6 py-2.5 rounded-2xl text-sm sm:text-base shadow-lg">
+            💾 Save & Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PAUSE MODAL ==================== -->
+  <div id="pauseModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+    <div class="animate-pop bg-white border-4 border-sky-400 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl">
+      <div class="text-4xl mb-2">⏸️</div>
+      <h2 class="text-2xl font-black text-slate-800 mb-1">Game Paused</h2>
+      <p class="text-sm font-bold text-slate-500 mb-5">Take a breather or edit the sentences!</p>
+      <div class="space-y-3">
+        <button onclick="togglePause()" class="btn-chunky w-full bg-emerald-500 hover:bg-emerald-600 border-b-4 border-emerald-700 text-white font-extrabold py-3 rounded-2xl text-lg">
+          ▶️ Resume Running
+        </button>
+        <button onclick="openStudyModal(true)" class="btn-chunky w-full bg-purple-100 hover:bg-purple-200 border-b-4 border-purple-400 text-purple-900 font-extrabold py-3 rounded-2xl text-base">
+          📖 Quick Review Chart
+        </button>
+        <button onclick="openEditorModal(true)" class="btn-chunky w-full bg-amber-100 hover:bg-amber-200 border-b-4 border-amber-400 text-amber-900 font-extrabold py-3 rounded-2xl text-base">
+          ✏️ Edit Sentences
+        </button>
+        <button onclick="returnToTitle()" class="btn-chunky w-full bg-slate-100 hover:bg-slate-200 border-b-4 border-slate-300 text-slate-700 font-extrabold py-3 rounded-2xl text-base">
+          🏠 Change Character / Home
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== END / VICTORY CELEBRATION SCREEN ==================== -->
+  <div id="victoryModal" style="z-index: 9999;" class="hidden fixed inset-0 flex items-center justify-center p-3 sm:p-6 bg-indigo-950/65 backdrop-blur-xs overflow-y-auto">
+    <div class="animate-pop bg-white border-4 border-amber-400 rounded-[2rem] max-w-xl w-full p-6 sm:p-8 text-center shadow-2xl my-auto">
+      <!-- Cute Trophy + Star Rating SVG -->
+      <div class="flex flex-col items-center justify-center mb-2">
+        <svg class="w-20 h-20 sm:w-24 sm:h-24 animate-float" viewBox="0 0 100 100">
+          <!-- Trophy Cup -->
+          <path d="M28 24h44v22c0 14-10 24-22 24s-22-10-22-24V24z" fill="#facc15" stroke="#b45309" stroke-width="3.5" stroke-linejoin="round"/>
+          <!-- Handles -->
+          <path d="M28 30H18c0 12 6 18 12 18" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+          <path d="M72 30h10c0 12-6 18-12 18" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+          <!-- Stem & Base -->
+          <rect x="44" y="70" width="12" height="12" fill="#f59e0b" stroke="#b45309" stroke-width="3"/>
+          <rect x="32" y="82" width="36" height="9" rx="4" fill="#fb7185" stroke="#be123c" stroke-width="3"/>
+          <!-- Cute Kawaii Face on Trophy -->
+          <circle cx="43" cy="43" r="2.8" fill="#78350f"/>
+          <circle cx="57" cy="43" r="2.8" fill="#78350f"/>
+          <ellipse cx="37" cy="47" rx="3.5" ry="2" fill="#fb7185" opacity="0.65"/>
+          <ellipse cx="63" cy="47" rx="3.5" ry="2" fill="#fb7185" opacity="0.65"/>
+          <path d="M46 49q4 4 8 0" stroke="#78350f" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        </svg>
+        <div id="victoryStarsRow" class="flex items-center justify-center gap-1.5 text-3xl sm:text-4xl mt-1">
+          ⭐⭐⭐
+        </div>
+      </div>
+
+      <h2 class="text-3xl sm:text-4xl font-black text-slate-800">Amazing Job!</h2>
+      <p id="victorySubtitle" class="text-base sm:text-lg font-extrabold text-indigo-600 mt-1">
+        You mastered all 6 "WAIT" sentences!
+      </p>
+
+      <!-- Score, Streak & Mastery Summary -->
+      <div class="grid grid-cols-3 gap-2.5 sm:gap-3 my-5">
+        <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3">
+          <div class="text-[11px] sm:text-xs font-extrabold uppercase text-amber-600">Final Score</div>
+          <div id="finalScore" class="text-2xl sm:text-3xl font-black text-slate-800">0</div>
+        </div>
+        <div class="bg-rose-50 border-2 border-rose-300 rounded-2xl p-3">
+          <div class="text-[11px] sm:text-xs font-extrabold uppercase text-rose-500">Best Streak</div>
+          <div id="finalStreak" class="text-2xl sm:text-3xl font-black text-slate-800">0</div>
+        </div>
+        <div class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-3">
+          <div class="text-[11px] sm:text-xs font-extrabold uppercase text-emerald-600">Mastered</div>
+          <div id="finalMastered" class="text-2xl sm:text-3xl font-black text-slate-800">6 / 6</div>
+        </div>
+      </div>
+
+      <!-- Quick Recap Pill Box (Synced with Teacher Choices) -->
+      <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 mb-6 text-left space-y-2">
+        <div class="text-xs font-extrabold uppercase text-slate-400 text-center mb-1">Today's 2 Expressions (等一下！)</div>
+        <div class="flex justify-between items-center bg-white px-3.5 py-2 rounded-xl border border-rose-200">
+          <span id="victoryRecap0Phrase" class="font-extrabold text-rose-600">1. Hang on!</span>
+          <span id="victoryRecap0Hint" class="text-xs sm:text-sm font-bold text-slate-600">Wait for a short time</span>
+        </div>
+        <div class="flex justify-between items-center bg-white px-3.5 py-2 rounded-xl border border-sky-200">
+          <span id="victoryRecap1Phrase" class="font-extrabold text-sky-600">2. Hold on!</span>
+          <span id="victoryRecap1Hint" class="text-xs sm:text-sm font-bold text-slate-600">Wait a moment / Don't go</span>
+        </div>
+      </div>
+
+      <!-- Actions: Keep Running Endless or Play Again -->
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button onclick="continueEndlessMode()" class="btn-chunky flex-1 bg-sky-500 hover:bg-sky-600 border-b-4 border-sky-700 text-white font-extrabold py-3.5 px-5 rounded-2xl text-base sm:text-lg shadow-lg">
+          ♾️ Endless Practice Mode
+        </button>
+        <button onclick="startGame()" class="btn-chunky flex-1 bg-emerald-500 hover:bg-emerald-600 border-b-4 border-emerald-700 text-white font-extrabold py-3.5 px-5 rounded-2xl text-base sm:text-lg shadow-lg">
+          🔄 Play Again
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. EDITABLE LESSON DATA (HANG ON! & HOLD ON! — SAVED IN LOCALSTORAGE)
+    // =========================================================================
+    const STORAGE_KEY = 'wait_runner_hangon_holdon_v1';
+
+    const DEFAULT_LESSON_DATA = {
+      choices: [
+        { phrase: "Hang on", hint: "Wait for a short time." },
+        { phrase: "Hold on", hint: "Wait a moment. Don't go yet." }
+      ],
+      questions: [
+        {
+          id: 1,
+          answerIndex: 0,
+          blankSentence: "______! I'm coming!",
+          chinese: "等一下！我來了！"
+        },
+        {
+          id: 2,
+          answerIndex: 0,
+          blankSentence: "______! Let me get my bag.",
+          chinese: "等一下！讓我拿我的包包。"
+        },
+        {
+          id: 3,
+          answerIndex: 0,
+          blankSentence: "______! I'm not ready.",
+          chinese: "等一下！我還沒準備好。"
+        },
+        {
+          id: 4,
+          answerIndex: 1,
+          blankSentence: "______! Don't go!",
+          chinese: "等一下！不要走！"
+        },
+        {
+          id: 5,
+          answerIndex: 1,
+          blankSentence: "______! I have a question.",
+          chinese: "等一下！我有一個問題。"
+        },
+        {
+          id: 6,
+          answerIndex: 1,
+          blankSentence: "______! It's my turn!",
+          chinese: "等一下！輪到我了！"
+        }
+      ]
+    };
+
+    let lessonData = loadLessonData();
+
+    function loadLessonData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (
+            parsed &&
+            Array.isArray(parsed.choices) &&
+            parsed.choices.length === 2 &&
+            Array.isArray(parsed.questions) &&
+            parsed.questions.length > 0
+          ) {
+            return parsed;
+          }
+        }
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(DEFAULT_LESSON_DATA));
+    }
+
+    function persistLessonData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lessonData));
+      } catch (e) {}
+    }
+
+    function formatPhraseExclaim(phrase) {
+      const trimmed = (phrase || '').trim();
+      if (!trimmed) return '';
+      return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}!`;
+    }
+
+    function buildFullSentence(blankSentence, phrase) {
+      const cleanPhrase = (phrase || '').trim();
+      if (blankSentence.includes('______')) {
+        return blankSentence.replace('______', cleanPhrase);
+      }
+      return `${formatPhraseExclaim(cleanPhrase)} ${blankSentence}`;
+    }
+
+    function toSpokenEnglish(text) {
+      return text
+        .replace(/\bI'm\b/gi, 'I am')
+        .replace(/\bDon't\b/gi, 'Do not')
+        .replace(/\bIt's\b/gi, 'It is');
+    }
+
+    function syncLessonUI() {
+      const c0 = lessonData.choices[0];
+      const c1 = lessonData.choices[1];
+      const c0Label = formatPhraseExclaim(c0.phrase);
+      const c1Label = formatPhraseExclaim(c1.phrase);
+
+      const el0 = document.getElementById('startBadge0');
+      const el1 = document.getElementById('startBadge1');
+      if (el0) el0.textContent = `1. ${c0Label}`;
+      if (el1) el1.textContent = `2. ${c1Label}`;
+
+      const btn0T = document.getElementById('choiceBtn0Title');
+      const btn0Sub = document.getElementById('choiceBtn0Sub');
+      const btn1T = document.getElementById('choiceBtn1Title');
+      const btn1Sub = document.getElementById('choiceBtn1Sub');
+
+      if (btn0T) btn0T.textContent = c0Label;
+      if (btn0Sub) btn0Sub.textContent = c0.hint || '';
+      if (btn1T) btn1T.textContent = c1Label;
+      if (btn1Sub) btn1Sub.textContent = c1.hint || '';
+
+      const rec0P = document.getElementById('victoryRecap0Phrase');
+      const rec0H = document.getElementById('victoryRecap0Hint');
+      const rec1P = document.getElementById('victoryRecap1Phrase');
+      const rec1H = document.getElementById('victoryRecap1Hint');
+
+      if (rec0P) rec0P.textContent = `1. ${c0Label}`;
+      if (rec0H) rec0H.textContent = c0.hint || '';
+      if (rec1P) rec1P.textContent = `2. ${c1Label}`;
+      if (rec1H) rec1H.textContent = c1.hint || '';
+
+      renderStudyCards();
+      updateHUD();
+    }
+
+    function renderStudyCards() {
+      const container = document.getElementById('studyCardsContainer');
+      if (!container) return;
+
+      const styles = [
+        {
+          cardBg: 'bg-rose-50 border-rose-300',
+          badgeBg: 'bg-rose-500',
+          titleText: 'text-rose-700',
+          borderPill: 'border-rose-200',
+          hoverBg: 'hover:bg-rose-100/70'
+        },
+        {
+          cardBg: 'bg-sky-50 border-sky-300',
+          badgeBg: 'bg-sky-500',
+          titleText: 'text-sky-700',
+          borderPill: 'border-sky-200',
+          hoverBg: 'hover:bg-sky-100/70'
+        }
+      ];
+
+      container.innerHTML = lessonData.choices
+        .map((choice, idx) => {
+          const st = styles[idx];
+          const label = formatPhraseExclaim(choice.phrase);
+          const matchingQuestions = lessonData.questions.filter(q => q.answerIndex === idx);
+
+          const examplesHtml =
+            matchingQuestions.length > 0
+              ? matchingQuestions
+                  .map(q => {
+                    const full = buildFullSentence(q.blankSentence, choice.phrase);
+                    const safeSpeak = toSpokenEnglish(full).replace(/'/g, "\\'");
+                    return `
+                      <button onclick="speakText('${safeSpeak}')" class="text-left bg-white ${st.hoverBg} p-2.5 rounded-2xl border ${st.borderPill} transition">
+                        <div class="font-extrabold text-slate-800 text-sm">🔊 ${escapeHtml(full)}</div>
+                        <div class="text-xs font-bold text-slate-500">${escapeHtml(q.chinese || '')}</div>
+                      </button>
+                    `;
+                  })
+                  .join('')
+              : `<div class="text-xs font-bold text-slate-400 italic col-span-full">No example sentences yet — click "Edit Sentences" to add some!</div>`;
+
+          const safeChoiceSpeak = toSpokenEnglish(label).replace(/'/g, "\\'");
+          return `
+            <div class="${st.cardBg} border-3 rounded-3xl p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="${st.badgeBg} text-white font-black px-3 py-1 rounded-xl text-base sm:text-xl">${idx + 1}. ${escapeHtml(label)}</span>
+                  <span class="font-extrabold ${st.titleText} text-base sm:text-lg">等一下！</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs sm:text-sm font-bold bg-white px-3 py-1 rounded-full text-slate-600 border ${st.borderPill}">Meaning: ${escapeHtml(choice.hint || '')}</span>
+                  <button onclick="speakText('${safeChoiceSpeak}')" class="btn-chunky ${st.badgeBg} text-white px-3 py-1 rounded-full font-bold text-sm shadow">🔊 Say it</button>
+                </div>
+              </div>
+              <div class="grid sm:grid-cols-3 gap-2 mt-2">
+                ${examplesHtml}
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // =========================================================================
+    // 2. SOUND EFFECTS (WEB AUDIO API) & TEXT-TO-SPEECH (WEB SPEECH API)
+    // =========================================================================
+    const AUDIO_PREFS_KEY = 'wait_runner_audio_prefs_v1';
+    let audioCtx = null;
+    let sfxEnabled = true;
+    let voiceEnabled = true;
+    let speakAnswerMode = true; // true = Speak + Tap (Classroom Speaking Practice), false = Tap / Click Only
+
+    // Load saved SFX, Voice & Answer Mode toggle states
+    (function loadAudioPrefs() {
+      try {
+        const raw = localStorage.getItem(AUDIO_PREFS_KEY);
+        if (raw) {
+          const prefs = JSON.parse(raw);
+          if (typeof prefs.sfxEnabled === 'boolean') sfxEnabled = prefs.sfxEnabled;
+          if (typeof prefs.voiceEnabled === 'boolean') voiceEnabled = prefs.voiceEnabled;
+          if (typeof prefs.speakAnswerMode === 'boolean') speakAnswerMode = prefs.speakAnswerMode;
+        }
+      } catch (e) {
+        // Ignore storage errors
+      }
+    })();
+
+    function saveAudioPrefs() {
+      try {
+        localStorage.setItem(AUDIO_PREFS_KEY, JSON.stringify({ sfxEnabled, voiceEnabled, speakAnswerMode }));
+      } catch (e) {
+        // Ignore storage errors
+      }
+    }
+
+    function syncAudioToggleUI() {
+      // HUD & Start SFX buttons
+      const sfxIcon = document.getElementById('sfxIcon');
+      const sfxLabel = document.getElementById('sfxLabel');
+      const btnSfx = document.getElementById('btnSfxToggle');
+      const startSfxIcon = document.getElementById('startSfxIcon');
+      const startSfxLabel = document.getElementById('startSfxLabel');
+      const startSfxBtn = document.getElementById('startSfxBtn');
+
+      if (sfxIcon) sfxIcon.textContent = sfxEnabled ? '🎵' : '🔇';
+      if (sfxLabel) sfxLabel.textContent = sfxEnabled ? 'SFX: ON' : 'SFX: OFF';
+      if (btnSfx) {
+        btnSfx.className = sfxEnabled
+          ? 'btn-chunky bg-amber-100 hover:bg-amber-200 border-b-4 border-amber-400 text-amber-900 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1'
+          : 'btn-chunky bg-slate-200 hover:bg-slate-300 border-b-4 border-slate-400 text-slate-600 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1';
+      }
+      if (startSfxIcon) startSfxIcon.textContent = sfxEnabled ? '🎵' : '🔇';
+      if (startSfxLabel) startSfxLabel.textContent = sfxEnabled ? 'SFX: ON' : 'SFX: OFF';
+      if (startSfxBtn) {
+        startSfxBtn.className = sfxEnabled
+          ? 'btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-amber-100 hover:bg-amber-200 text-amber-900 border-b-4 border-amber-400 flex items-center gap-1'
+          : 'btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-slate-200 hover:bg-slate-300 text-slate-600 border-b-4 border-slate-400 flex items-center gap-1';
+      }
+
+      // HUD & Start Voice buttons
+      const voiceIcon = document.getElementById('voiceIcon');
+      const voiceLabel = document.getElementById('voiceLabel');
+      const btnVoice = document.getElementById('btnVoiceToggle');
+      const startVoiceIcon = document.getElementById('startVoiceIcon');
+      const startVoiceLabel = document.getElementById('startVoiceLabel');
+      const startVoiceBtn = document.getElementById('startVoiceBtn');
+
+      if (voiceIcon) voiceIcon.textContent = voiceEnabled ? '💬' : '🤐';
+      if (voiceLabel) voiceLabel.textContent = voiceEnabled ? 'Voice: ON' : 'Voice: OFF';
+      if (btnVoice) {
+        btnVoice.className = voiceEnabled
+          ? 'btn-chunky bg-emerald-100 hover:bg-emerald-200 border-b-4 border-emerald-400 text-emerald-900 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1'
+          : 'btn-chunky bg-slate-200 hover:bg-slate-300 border-b-4 border-slate-400 text-slate-600 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1';
+      }
+      if (startVoiceIcon) startVoiceIcon.textContent = voiceEnabled ? '💬' : '🤐';
+      if (startVoiceLabel) startVoiceLabel.textContent = voiceEnabled ? 'Voice: ON' : 'Voice: OFF';
+      if (startVoiceBtn) {
+        startVoiceBtn.className = voiceEnabled
+          ? 'btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-b-4 border-emerald-400 flex items-center gap-1'
+          : 'btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-slate-200 hover:bg-slate-300 text-slate-600 border-b-4 border-slate-400 flex items-center gap-1';
+      }
+
+      // HUD & Start Answer Mode (Speak vs Tap/Click) buttons
+      const amIcon = document.getElementById('answerModeIcon');
+      const amLabel = document.getElementById('answerModeLabel');
+      const btnAm = document.getElementById('btnAnswerModeToggle');
+      const startAmIcon = document.getElementById('startAnswerModeIcon');
+      const startAmLabel = document.getElementById('startAnswerModeLabel');
+      const startAmBtn = document.getElementById('startAnswerModeBtn');
+
+      if (amIcon) amIcon.textContent = speakAnswerMode ? '🎤' : '👆';
+      if (amLabel) amLabel.textContent = speakAnswerMode ? 'Mode: Speak' : 'Mode: Tap';
+      if (btnAm) {
+        btnAm.className = speakAnswerMode
+          ? 'btn-chunky bg-rose-100 hover:bg-rose-200 border-b-4 border-rose-400 text-rose-900 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1'
+          : 'btn-chunky bg-indigo-100 hover:bg-indigo-200 border-b-4 border-indigo-400 text-indigo-900 font-bold text-xs sm:text-sm px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl shadow-md flex items-center gap-1';
+      }
+      if (startAmIcon) startAmIcon.textContent = speakAnswerMode ? '🎤' : '👆';
+      if (startAmLabel) startAmLabel.textContent = speakAnswerMode ? 'Answer: Speak + Tap' : 'Answer: Tap Only';
+      if (startAmBtn) {
+        startAmBtn.className = speakAnswerMode
+          ? 'btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-rose-100 hover:bg-rose-200 text-rose-900 border-b-4 border-rose-400 flex items-center gap-1'
+          : 'btn-chunky px-3 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-900 border-b-4 border-indigo-400 flex items-center gap-1';
+      }
+
+      // Update Practice Gate UI immediately if currently open
+      const micBar = document.getElementById('micPracticeBar');
+      const gateInstr = document.getElementById('gateInstructionText');
+      if (micBar) {
+        if (speakAnswerMode) micBar.classList.remove('hidden');
+        else micBar.classList.add('hidden');
+      }
+      if (gateInstr) {
+        gateInstr.textContent = speakAnswerMode
+          ? '🎤 Speak your answer into the mic — or tap a portal button anytime! 👇'
+          : '👇 Tap the matching answer or steer Left / Right into the portal! 👇';
+      }
+    }
+
+    function toggleAnswerMode() {
+      speakAnswerMode = !speakAnswerMode;
+      saveAudioPrefs();
+      syncAudioToggleUI();
+      sfxSwitchLane();
+
+      if (gameState === STATE.PRACTICE && currentQuestion) {
+        if (speakAnswerMode) {
+          startSpeechRecognition();
+        } else {
+          stopSpeechRecognition();
+        }
+      }
+    }
+
+    // =========================================================================
+    // 2B. INCLUSIVE & HYPERSENSITIVE KIDS SPEECH RECOGNITION ENGINE
+    // =========================================================================
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+    let shouldKeepListening = false;
+    let isTtsSpeaking = false;
+
+    function updateMicVisuals(state, message) {
+      const btn = document.getElementById('btnMicListen');
+      const icon = document.getElementById('micBtnIcon');
+      const text = document.getElementById('micBtnText');
+      const transcriptBox = document.getElementById('micTranscriptBox');
+
+      if (transcriptBox && message) {
+        transcriptBox.innerHTML = message;
+      }
+      if (!btn || !icon || !text) return;
+
+      if (state === 'listening') {
+        btn.className = 'btn-chunky animate-mic-pulse bg-gradient-to-b from-rose-500 to-pink-600 border-b-4 border-rose-800 text-white font-black text-sm sm:text-base px-4 py-2 rounded-full shadow-md flex items-center gap-2';
+        icon.textContent = '🎙️';
+        text.textContent = 'Listening... Speak Now!';
+      } else if (state === 'waiting_tts') {
+        btn.className = 'btn-chunky bg-amber-400 border-b-4 border-amber-600 text-slate-900 font-black text-sm sm:text-base px-4 py-2 rounded-full shadow-md flex items-center gap-2';
+        icon.textContent = '🔊';
+        text.textContent = 'Reading Prompt...';
+      } else if (state === 'unsupported') {
+        btn.className = 'btn-chunky bg-slate-300 border-b-4 border-slate-400 text-slate-700 font-black text-sm sm:text-base px-4 py-2 rounded-full shadow flex items-center gap-2';
+        icon.textContent = '👆';
+        text.textContent = 'Tap Below to Answer!';
+      } else {
+        btn.className = 'btn-chunky bg-gradient-to-b from-emerald-400 to-green-500 hover:from-emerald-300 hover:to-green-400 border-b-4 border-green-700 text-white font-black text-sm sm:text-base px-4 py-2 rounded-full shadow-md flex items-center gap-2';
+        icon.textContent = '🎤';
+        text.textContent = 'Tap to Speak!';
+      }
+    }
+
+    // Gentle phonetic normalization & Levenshtein similarity so young learners,
+    // ESL students, shy speakers, or speech variations are warmly understood!
+    function normalizeSpeech(str) {
+      return String(str || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function levenshteinDistance(a, b) {
+      const m = a.length;
+      const n = b.length;
+      if (m === 0) return n;
+      if (n === 0) return m;
+      const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+      for (let i = 0; i <= m; i++) dp[i][0] = i;
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + cost
+          );
+        }
+      }
+      return dp[m][n];
+    }
+
+    function matchSpokenChoice(transcripts) {
+      const c0Raw = normalizeSpeech(lessonData.choices[0].phrase);
+      const c1Raw = normalizeSpeech(lessonData.choices[1].phrase);
+
+      // Inclusive kid-pronunciation & classroom phonetic aliases for default phrases
+      const c0Aliases = [c0Raw, c0Raw.replace(/\s+/g, '')];
+      if (c0Raw === 'hang on') {
+        c0Aliases.push('hang', 'hang in', 'hang up', 'hank on', 'hen on', 'hand on', 'hangon', 'hey on', 'hong on', 'hang home');
+      }
+
+      const c1Aliases = [c1Raw, c1Raw.replace(/\s+/g, '')];
+      if (c1Raw === 'hold on') {
+        c1Aliases.push('hold', 'hold in', 'hold up', 'old on', 'whole on', 'holdon', 'ho on', 'home on', 'cold on', 'hold down');
+      }
+
+      for (const rawSpoken of transcripts) {
+        const spoken = normalizeSpeech(rawSpoken);
+        if (!spoken) continue;
+
+        // 1. Direct or alias substring match (works even if child says the whole sentence, e.g. "Hang on I'm coming!")
+        if (c0Aliases.some(alias => alias && spoken.includes(alias))) return 0;
+        if (c1Aliases.some(alias => alias && spoken.includes(alias))) return 1;
+
+        // 2. Fuzzy word-window match for gentle accent/articulation tolerance
+        const words = spoken.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const twoWord = words.slice(i, i + 2).join(' ');
+          const oneWord = words[i];
+          if (c0Raw && levenshteinDistance(twoWord, c0Raw) <= 2) return 0;
+          if (c1Raw && levenshteinDistance(twoWord, c1Raw) <= 2) return 1;
+
+          const c0First = c0Raw.split(' ')[0];
+          const c1First = c1Raw.split(' ')[0];
+          if (c0First && c0First.length >= 3 && levenshteinDistance(oneWord, c0First) <= 1) return 0;
+          if (c1First && c1First.length >= 3 && levenshteinDistance(oneWord, c1First) <= 1) return 1;
+        }
+      }
+      return -1;
+    }
+
+    function startSpeechRecognition() {
+      if (!speakAnswerMode || gameState !== STATE.PRACTICE || !currentQuestion) return;
+
+      if (!SpeechRecognitionAPI) {
+        updateMicVisuals(
+          'unsupported',
+          '💛 Browser mic is unavailable here — tap the colorful buttons below to play!'
+        );
+        return;
+      }
+
+      if (isTtsSpeaking) {
+        updateMicVisuals('waiting_tts', '🔊 Listening to the sentence first... get ready to speak!');
+        return;
+      }
+
+      shouldKeepListening = true;
+      if (isListening) return;
+
+      try {
+        recognition = new SpeechRecognitionAPI();
+        recognition.lang = 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 5;
+
+        recognition.onstart = () => {
+          isListening = true;
+          updateMicVisuals('listening', '🎙️ Speak clearly or say the whole sentence — we are listening!');
+        };
+
+        recognition.onresult = (event) => {
+          if (gameState !== STATE.PRACTICE || !currentQuestion) return;
+
+          let latestHeard = '';
+          const candidateTranscripts = [];
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const res = event.results[i];
+            for (let alt = 0; alt < res.length; alt++) {
+              const t = res[alt].transcript;
+              if (t) {
+                candidateTranscripts.push(t);
+                if (alt === 0) latestHeard = t;
+              }
+            }
+          }
+
+          if (latestHeard) {
+            updateMicVisuals('listening', `💬 Heard: <span class="text-indigo-700">"${escapeHtml(latestHeard.trim())}"</span>`);
+          }
+
+          const matchedIndex = matchSpokenChoice(candidateTranscripts);
+          if (matchedIndex === 0 || matchedIndex === 1) {
+            stopSpeechRecognition();
+            submitAnswer(matchedIndex, true);
+          }
+        };
+
+        recognition.onerror = (event) => {
+          isListening = false;
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            shouldKeepListening = false;
+            updateMicVisuals(
+              'idle',
+              '💛 Mic permission is off — no problem! Tap the big buttons below anytime.'
+            );
+          } else if (event.error === 'no-speech') {
+            // Hypersensitive & patient: never scold kids for pausing or thinking!
+            updateMicVisuals('listening', '🌟 Take your time! Say the phrase whenever you are ready.');
+          }
+        };
+
+        recognition.onend = () => {
+          isListening = false;
+          if (shouldKeepListening && speakAnswerMode && gameState === STATE.PRACTICE && !isTtsSpeaking) {
+            setTimeout(() => {
+              if (shouldKeepListening && speakAnswerMode && gameState === STATE.PRACTICE && !isListening) {
+                startSpeechRecognition();
+              }
+            }, 220);
+          }
+        };
+
+        recognition.start();
+      } catch (e) {
+        isListening = false;
+      }
+    }
+
+    function stopSpeechRecognition() {
+      shouldKeepListening = false;
+      if (recognition) {
+        try {
+          recognition.onend = null;
+          recognition.stop();
+        } catch (e) {}
+        recognition = null;
+      }
+      isListening = false;
+    }
+
+    function toggleSpeechRecognition() {
+      if (!SpeechRecognitionAPI) {
+        updateMicVisuals('unsupported', '💛 Tap the colorful portal buttons below to answer!');
+        return;
+      }
+      if (isListening) {
+        stopSpeechRecognition();
+        updateMicVisuals('idle', '⏸️ Mic paused — tap "Tap to Speak!" or click a button below.');
+      } else {
+        startSpeechRecognition();
+      }
+    }
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+    }
+
+    function speakText(text, onFinishedCallback = null) {
+      if (!voiceEnabled) {
+        if (typeof onFinishedCallback === 'function') onFinishedCallback();
+        return;
+      }
+      const cleanText = String(text || '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!cleanText) {
+        if (typeof onFinishedCallback === 'function') onFinishedCallback();
+        return;
+      }
+      if ('speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(cleanText);
+          const usVoice = getNeutralAmericanVoice();
+          if (usVoice) {
+            utter.voice = usVoice;
+          }
+          utter.lang = 'en-US';
+          utter.rate = 0.92; // Clear, neutral American speed for elementary learners
+          utter.pitch = 1.02;
+
+          isTtsSpeaking = true;
+          utter.onend = () => {
+            isTtsSpeaking = false;
+            if (typeof onFinishedCallback === 'function') onFinishedCallback();
+          };
+          utter.onerror = () => {
+            isTtsSpeaking = false;
+            if (typeof onFinishedCallback === 'function') onFinishedCallback();
+          };
+
+          window.speechSynthesis.speak(utter);
+        } catch (e) {
+          isTtsSpeaking = false;
+          if (typeof onFinishedCallback === 'function') onFinishedCallback();
+        }
+      } else if (typeof onFinishedCallback === 'function') {
+        onFinishedCallback();
+      }
+    }
+
+    function playTone(freq, type = 'sine', duration = 0.12, gainVal = 0.18, slideTo = null) {
+      if (!sfxEnabled) return;
+      initAudio();
+      if (!audioCtx) return;
+
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        if (slideTo) {
+          osc.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
+        }
+
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        // Ignore audio errors on restricted devices
+      }
+    }
+
+    function sfxSwitchLane() {
+      playTone(340, 'triangle', 0.09, 0.14, 520);
+    }
+
+    function sfxJump() {
+      playTone(280, 'sine', 0.22, 0.18, 660);
+    }
+
+    function sfxStarCollect() {
+      playTone(784, 'sine', 0.08, 0.15);
+      setTimeout(() => playTone(1046, 'sine', 0.14, 0.15), 55);
+    }
+
+    function sfxGateAppear() {
+      playTone(440, 'triangle', 0.12, 0.15);
+      setTimeout(() => playTone(554, 'triangle', 0.12, 0.15), 80);
+      setTimeout(() => playTone(659, 'triangle', 0.18, 0.15), 160);
+    }
+
+    function sfxCorrect() {
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((n, idx) => {
+        setTimeout(() => playTone(n, 'triangle', 0.18, 0.2), idx * 75);
+      });
+    }
+
+    function sfxGentleOops() {
+      playTone(260, 'sine', 0.18, 0.18, 190);
+    }
+
+    function sfxBump() {
+      playTone(150, 'sawtooth', 0.18, 0.14, 80);
+    }
+
+    // Select a clear, neutral General American English (en-US) voice
+    let cachedUSVoice = null;
+    function getNeutralAmericanVoice() {
+      if (!('speechSynthesis' in window)) return null;
+      const voices = window.speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) return cachedUSVoice;
+
+      // Priority list of clear, neutral General American English voices
+      const preferredNames = [
+        'Google US English',
+        'Microsoft Aria Online (Natural)',
+        'Microsoft Jenny Online (Natural)',
+        'Microsoft Guy Online (Natural)',
+        'Microsoft Ava Online (Natural)',
+        'Microsoft Andrew Online (Natural)',
+        'Microsoft Zira',
+        'Microsoft David',
+        'Samantha',
+        'Alex',
+        'Ava',
+        'Allison',
+        'en-US'
+      ];
+
+      for (const name of preferredNames) {
+        const match = voices.find(v =>
+          (v.lang === 'en-US' || v.lang === 'en_US') &&
+          v.name.toLowerCase().includes(name.toLowerCase())
+        );
+        if (match) {
+          cachedUSVoice = match;
+          return match;
+        }
+      }
+
+      // Fallback strictly to any en-US voice (avoiding en-GB, en-AU, en-IN, etc.)
+      const anyUS = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US');
+      if (anyUS) {
+        cachedUSVoice = anyUS;
+        return anyUS;
+      }
+
+      return null;
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        getNeutralAmericanVoice();
+      };
+    }
+
+    // Build clean spoken prompt without reading or humming underscores ("______")
+    function formatPromptForSpeech(blankSentence) {
+      let cleaned = String(blankSentence || '');
+      // Strip leading blanks and any immediate punctuation (e.g. "______! I'm coming!" -> "I'm coming!")
+      cleaned = cleaned.replace(/^\s*_+\s*[!?.]?\s*/, '');
+      // Replace any mid-sentence blanks with a natural comma pause instead of underscores
+      cleaned = cleaned.replace(/\s*_+\s*/g, ', ');
+      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      return toSpokenEnglish(cleaned);
+    }
+
+    function toggleSfx() {
+      sfxEnabled = !sfxEnabled;
+      saveAudioPrefs();
+      syncAudioToggleUI();
+      if (sfxEnabled) {
+        sfxSwitchLane();
+      }
+    }
+
+    function toggleVoice() {
+      voiceEnabled = !voiceEnabled;
+      saveAudioPrefs();
+      syncAudioToggleUI();
+      if (!voiceEnabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      } else if (voiceEnabled) {
+        speakText('Voice on!');
+      }
+    }
+
+    // =========================================================================
+    // 3. GAME STATE & CONFIGURATION
+    // =========================================================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    const STATE = {
+      START: 'START',
+      RUNNING: 'RUNNING',
+      PRACTICE: 'PRACTICE',
+      PAUSED: 'PAUSED',
+      VICTORY: 'VICTORY'
+    };
+
+    let gameState = STATE.START;
+    let previousStateBeforeModal = STATE.START;
+
+    // Player customization & settings
+    let selectedChar = 'bunny'; // 'bunny', 'puppy', 'kitty'
+    let speedMode = 'relaxed'; // 'relaxed' or 'normal'
+
+    // Score & Progression
+    let score = 0;
+    let streak = 0;
+    let bestStreak = 0;
+    let masteredIds = new Set();
+    let questionQueue = [];
+    let currentQuestion = null;
+    let endlessMode = false;
+    let victoryTriggered = false;
+    let victoryTimerId = null;
+    let currentLane = 1; // 0 = Left, 1 = Center, 2 = Right
+    let visualLaneX = 1; // Smoothly interpolated lane float [0..2]
+    let jumpY = 0;
+    let jumpVel = 0;
+    let isJumping = false;
+    let runCycle = 0;
+    let boostTimer = 0; // Super boost + invincibility after correct answer
+    let hurtFlashTimer = 0;
+
+    // Track & World Entities
+    let roadScroll = 0;
+    let distanceSinceLastGate = 0;
+    const GATE_INTERVAL = 480; // Trigger Practice Gate every ~6-7 seconds
+    let entities = []; // Stars, Cute Obstacles, Practice Gate
+    let particles = []; // Confetti & sparkles
+    let floatingPopups = []; // +50 BONUS! / -20 PENALTY! popups
+    let clouds = [];
+    let trees = [];
+    let spawnTimer = 0;
+
+    // Touch / Swipe handling
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    // =========================================================================
+    // 4. RESPONSIVE CANVAS RESIZING
+    // =========================================================================
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Initialize decorative background clouds & trees
+    function initScenery() {
+      clouds = [
+        { x: width * 0.15, y: height * 0.12, scale: 1.0, speed: 12 },
+        { x: width * 0.55, y: height * 0.08, scale: 1.25, speed: 8 },
+        { x: width * 0.85, y: height * 0.15, scale: 0.9, speed: 15 }
+      ];
+      trees = [];
+      for (let i = 0; i < 8; i++) {
+        trees.push({
+          z: i / 8,
+          side: i % 2 === 0 ? -1 : 1,
+          color: i % 3 === 0 ? '#6ee7b7' : (i % 3 === 1 ? '#86efac' : '#fde047')
+        });
+      }
+    }
+    initScenery();
+
+    // =========================================================================
+    // 5. UI & MODAL HANDLERS
+    // =========================================================================
+    function selectCharacter(charKey) {
+      selectedChar = charKey;
+      try { sfxStarCollect(); } catch (e) {}
+      ['bunny', 'puppy', 'kitty', 'chick'].forEach(key => {
+        const btn = document.getElementById(`charBtn-${key}`);
+        if (!btn) return;
+        const svg = btn.querySelector('svg');
+        const sub = btn.querySelector('.char-sub') || btn.querySelector('div:last-child');
+        if (key === charKey) {
+          btn.classList.remove('border-transparent', 'bg-white');
+          btn.classList.add('border-rose-400', 'bg-rose-50', 'shadow-md');
+          if (svg) svg.classList.add('animate-float');
+          if (sub) {
+            sub.textContent = 'Selected ✓';
+            sub.className = 'char-sub text-[11px] font-bold text-rose-500';
+          }
+        } else {
+          btn.classList.add('border-transparent', 'bg-white');
+          btn.classList.remove('border-rose-400', 'bg-rose-50', 'shadow-md');
+          if (svg) svg.classList.remove('animate-float');
+          if (sub) {
+            sub.textContent = 'Tap to pick';
+            sub.className = 'char-sub text-[11px] font-bold text-slate-400';
+          }
+        }
+      });
+    }
+
+    function setSpeedMode(mode) {
+      speedMode = mode;
+      const startRelaxed = document.getElementById('startSpeedRelaxed');
+      const startNormal = document.getElementById('startSpeedNormal');
+      const hudIcon = document.getElementById('speedIcon');
+      const hudLabel = document.getElementById('speedLabel');
+
+      if (mode === 'relaxed') {
+        startRelaxed.className = 'btn-chunky px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-emerald-500 text-white border-b-4 border-emerald-700';
+        startNormal.className = 'btn-chunky px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-slate-200 text-slate-700 border-b-4 border-slate-400';
+        hudIcon.textContent = '🐢';
+        hudLabel.textContent = 'Relaxed';
+      } else {
+        startNormal.className = 'btn-chunky px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-sky-500 text-white border-b-4 border-sky-700';
+        startRelaxed.className = 'btn-chunky px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm bg-slate-200 text-slate-700 border-b-4 border-slate-400';
+        hudIcon.textContent = '🐇';
+        hudLabel.textContent = 'Normal';
+      }
+    }
+
+    function toggleSpeedMode() {
+      setSpeedMode(speedMode === 'relaxed' ? 'normal' : 'relaxed');
+      sfxSwitchLane();
+    }
+
+    function openStudyModal(fromGameplay) {
+      if (fromGameplay && gameState !== STATE.PAUSED) {
+        previousStateBeforeModal = gameState;
+        gameState = STATE.PAUSED;
+      } else if (!fromGameplay) {
+        previousStateBeforeModal = STATE.START;
+      }
+      renderStudyCards();
+      document.getElementById('pauseModal').classList.add('hidden');
+      document.getElementById('editorModal').classList.add('hidden');
+      document.getElementById('studyModal').classList.remove('hidden');
+      sfxSwitchLane();
+    }
+
+    function closeStudyModal() {
+      document.getElementById('studyModal').classList.add('hidden');
+      if (previousStateBeforeModal === STATE.RUNNING || previousStateBeforeModal === STATE.PRACTICE) {
+        gameState = previousStateBeforeModal;
+      }
+    }
+
+    // =========================================================================
+    // TEACHER EDITOR MODAL LOGIC
+    // =========================================================================
+    let draftQuestions = [];
+
+    function openEditorModal(fromGameplay) {
+      if (fromGameplay && gameState !== STATE.PAUSED) {
+        previousStateBeforeModal = gameState;
+        gameState = STATE.PAUSED;
+      } else if (!fromGameplay) {
+        previousStateBeforeModal = STATE.START;
+      }
+
+      document.getElementById('pauseModal').classList.add('hidden');
+      document.getElementById('studyModal').classList.add('hidden');
+
+      // Populate choice inputs
+      document.getElementById('editChoice0Phrase').value = lessonData.choices[0].phrase;
+      document.getElementById('editChoice0Hint').value = lessonData.choices[0].hint;
+      document.getElementById('editChoice1Phrase').value = lessonData.choices[1].phrase;
+      document.getElementById('editChoice1Hint').value = lessonData.choices[1].hint;
+
+      // Clone current questions into draft list
+      draftQuestions = lessonData.questions.map(q => ({ ...q }));
+      renderEditorSentenceRows();
+
+      const banner = document.getElementById('editorStatusBanner');
+      banner.classList.add('hidden');
+
+      document.getElementById('editorModal').classList.remove('hidden');
+      sfxSwitchLane();
+    }
+
+    function closeEditorModal() {
+      document.getElementById('editorModal').classList.add('hidden');
+      if (previousStateBeforeModal === STATE.RUNNING || previousStateBeforeModal === STATE.PRACTICE) {
+        gameState = previousStateBeforeModal;
+      }
+    }
+
+    function renderEditorSentenceRows() {
+      const list = document.getElementById('editorSentencesList');
+      document.getElementById('editorSentenceCount').textContent = draftQuestions.length;
+
+      const c0Name = formatPhraseExclaim(document.getElementById('editChoice0Phrase').value || lessonData.choices[0].phrase);
+      const c1Name = formatPhraseExclaim(document.getElementById('editChoice1Phrase').value || lessonData.choices[1].phrase);
+
+      list.innerHTML = draftQuestions
+        .map((q, idx) => {
+          return `
+            <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div class="font-black text-slate-400 text-xs sm:text-sm px-1">#${idx + 1}</div>
+              
+              <!-- Answer Selector (Choice 0 vs Choice 1) -->
+              <select onchange="updateDraftQuestion(${idx}, 'answerIndex', Number(this.value))"
+                class="px-3 py-2 rounded-xl border-2 ${q.answerIndex === 0 ? 'border-rose-300 bg-rose-50 text-rose-800' : 'border-sky-300 bg-sky-50 text-sky-800'} font-extrabold text-xs sm:text-sm focus:outline-none">
+                <option value="0" ${q.answerIndex === 0 ? 'selected' : ''}>👈 ${escapeHtml(c0Name)}</option>
+                <option value="1" ${q.answerIndex === 1 ? 'selected' : ''}>👉 ${escapeHtml(c1Name)}</option>
+              </select>
+
+              <!-- English Sentence with ______ -->
+              <input type="text" value="${escapeHtml(q.blankSentence)}"
+                oninput="updateDraftQuestion(${idx}, 'blankSentence', this.value)"
+                placeholder="e.g. ______! I'm coming!"
+                class="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800 text-xs sm:text-sm focus:outline-none focus:border-indigo-500" />
+
+              <!-- Chinese Translation / Hint -->
+              <input type="text" value="${escapeHtml(q.chinese)}"
+                oninput="updateDraftQuestion(${idx}, 'chinese', this.value)"
+                placeholder="中文翻譯 (e.g. 等一下！我來了！)"
+                class="sm:w-52 px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-600 text-xs sm:text-sm focus:outline-none focus:border-indigo-500" />
+
+              <!-- Delete Row Button -->
+              <button onclick="deleteDraftQuestion(${idx})" title="Remove sentence"
+                class="btn-chunky bg-rose-100 hover:bg-rose-200 text-rose-700 font-black px-3 py-2 rounded-xl text-xs sm:text-sm shrink-0">
+                🗑️
+              </button>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function updateDraftQuestion(index, field, value) {
+      if (!draftQuestions[index]) return;
+      draftQuestions[index][field] = value;
+      if (field === 'answerIndex') {
+        renderEditorSentenceRows();
+      }
+    }
+
+    function addEditorSentenceRow() {
+      const nextId = draftQuestions.reduce((max, q) => Math.max(max, q.id || 0), 0) + 1;
+      draftQuestions.push({
+        id: nextId,
+        answerIndex: 0,
+        blankSentence: "______! Wait for me!",
+        chinese: "等一下！等等我！"
+      });
+      renderEditorSentenceRows();
+      sfxStarCollect();
+    }
+
+    function deleteDraftQuestion(index) {
+      const banner = document.getElementById('editorStatusBanner');
+      if (draftQuestions.length <= 1) {
+        banner.className = 'p-3 rounded-2xl text-sm font-extrabold text-center bg-rose-100 text-rose-800 border border-rose-300 block';
+        banner.textContent = '⚠️ Please keep at least 1 practice sentence in the game!';
+        return;
+      }
+      draftQuestions.splice(index, 1);
+      renderEditorSentenceRows();
+      sfxSwitchLane();
+    }
+
+    function resetToDefaultLesson() {
+      lessonData = JSON.parse(JSON.stringify(DEFAULT_LESSON_DATA));
+      persistLessonData();
+      document.getElementById('editChoice0Phrase').value = lessonData.choices[0].phrase;
+      document.getElementById('editChoice0Hint').value = lessonData.choices[0].hint;
+      document.getElementById('editChoice1Phrase').value = lessonData.choices[1].phrase;
+      document.getElementById('editChoice1Hint').value = lessonData.choices[1].hint;
+      draftQuestions = lessonData.questions.map(q => ({ ...q }));
+      renderEditorSentenceRows();
+      syncLessonUI();
+
+      const banner = document.getElementById('editorStatusBanner');
+      banner.className = 'p-3 rounded-2xl text-sm font-extrabold text-center bg-sky-100 text-sky-800 border border-sky-300 block';
+      banner.textContent = '🔄 Reset back to default "Hang on!" and "Hold on!" (6 sentences).';
+      sfxStarCollect();
+    }
+
+    function saveTeacherEdits() {
+      const banner = document.getElementById('editorStatusBanner');
+      const p0 = document.getElementById('editChoice0Phrase').value.trim();
+      const h0 = document.getElementById('editChoice0Hint').value.trim();
+      const p1 = document.getElementById('editChoice1Phrase').value.trim();
+      const h1 = document.getElementById('editChoice1Hint').value.trim();
+
+      if (!p0 || !p1) {
+        banner.className = 'p-3 rounded-2xl text-sm font-extrabold text-center bg-rose-100 text-rose-800 border border-rose-300 block';
+        banner.textContent = '⚠️ Both Left and Right answer phrases must have text!';
+        return;
+      }
+
+      const cleanedQuestions = draftQuestions
+        .map((q, idx) => {
+          let blank = (q.blankSentence || '').trim();
+          if (!blank) return null;
+          // Auto-prepend ______! if teacher forgot to include ______
+          if (!blank.includes('______')) {
+            blank = `______! ${blank}`;
+          }
+          return {
+            id: q.id || idx + 1,
+            answerIndex: q.answerIndex === 1 ? 1 : 0,
+            blankSentence: blank,
+            chinese: (q.chinese || '').trim()
+          };
+        })
+        .filter(Boolean);
+
+      if (cleanedQuestions.length === 0) {
+        banner.className = 'p-3 rounded-2xl text-sm font-extrabold text-center bg-rose-100 text-rose-800 border border-rose-300 block';
+        banner.textContent = '⚠️ Please include at least 1 valid sentence!';
+        return;
+      }
+
+      lessonData = {
+        choices: [
+          { phrase: p0.replace(/!+$/, ''), hint: h0 || 'Option 1' },
+          { phrase: p1.replace(/!+$/, ''), hint: h1 || 'Option 2' }
+        ],
+        questions: cleanedQuestions
+      };
+
+      persistLessonData();
+      syncLessonUI();
+
+      // Refresh queue so active gameplay immediately uses the updated sentences
+      masteredIds.clear();
+      refillQuestionQueue();
+      updateHUD();
+
+      // If currently on a Practice Gate, refresh the active prompt immediately
+      if (previousStateBeforeModal === STATE.PRACTICE) {
+        currentQuestion = questionQueue.shift();
+        populatePracticePrompt(currentQuestion);
+      }
+
+      sfxCorrect();
+      closeEditorModal();
+    }
+
+    function togglePause() {
+      if (gameState === STATE.RUNNING || gameState === STATE.PRACTICE) {
+        stopSpeechRecognition();
+        previousStateBeforeModal = gameState;
+        gameState = STATE.PAUSED;
+        document.getElementById('pauseModal').classList.remove('hidden');
+      } else if (gameState === STATE.PAUSED) {
+        document.getElementById('pauseModal').classList.add('hidden');
+        gameState = previousStateBeforeModal;
+        if (gameState === STATE.PRACTICE && speakAnswerMode) {
+          startSpeechRecognition();
+        }
+      }
+    }
+
+    function returnToTitle() {
+      stopSpeechRecognition();
+      document.getElementById('pauseModal').classList.add('hidden');
+      document.getElementById('victoryModal').classList.add('hidden');
+      document.getElementById('practiceOverlay').classList.add('hidden');
+      document.getElementById('hudLayer').classList.add('hidden');
+      document.getElementById('startScreen').classList.remove('hidden');
+      gameState = STATE.START;
+    }
+
+    // =========================================================================
+    // 6. GAME START & QUESTION QUEUE LOGIC
+    // =========================================================================
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function refillQuestionQueue() {
+      // Prioritize unmastered questions first, shuffled
+      const unmastered = lessonData.questions.filter(q => !masteredIds.has(q.id));
+      if (unmastered.length > 0) {
+        questionQueue = shuffleArray(unmastered);
+      } else {
+        questionQueue = shuffleArray(lessonData.questions);
+      }
+    }
+
+    function startGame() {
+      try { initAudio(); } catch (e) {}
+      if (victoryTimerId) {
+        clearTimeout(victoryTimerId);
+        victoryTimerId = null;
+      }
+      victoryTriggered = false;
+      syncLessonUI();
+      score = 0;
+      streak = 0;
+      bestStreak = 0;
+      masteredIds.clear();
+      endlessMode = false;
+      refillQuestionQueue();
+
+      currentLane = 1;
+      visualLaneX = 1;
+      jumpY = 0;
+      jumpVel = 0;
+      isJumping = false;
+      boostTimer = 0;
+      hurtFlashTimer = 0;
+      distanceSinceLastGate = 180; // First gate comes quickly (~4 seconds) so kids get engaged right away!
+      entities = [];
+      particles = [];
+      floatingPopups = [];
+
+      // Spawn initial welcoming row of stars
+      spawnInitialStars();
+
+      updateHUD();
+      const startEl = document.getElementById('startScreen');
+      const victoryEl = document.getElementById('victoryModal');
+      const practiceEl = document.getElementById('practiceOverlay');
+      const hudEl = document.getElementById('hudLayer');
+      const finishBtn = document.getElementById('btnFinishEndless');
+
+      if (startEl) startEl.classList.add('hidden');
+      if (victoryEl) {
+        victoryEl.classList.add('hidden');
+        victoryEl.style.display = '';
+      }
+      if (practiceEl) practiceEl.classList.add('hidden');
+      if (hudEl) hudEl.classList.remove('hidden');
+      if (finishBtn) finishBtn.classList.add('hidden');
+
+      gameState = STATE.RUNNING;
+      try { sfxCorrect(); } catch (e) {}
+    }
+
+    function continueEndlessMode() {
+      if (victoryTimerId) {
+        clearTimeout(victoryTimerId);
+        victoryTimerId = null;
+      }
+      endlessMode = true;
+      victoryTriggered = false;
+      const victoryEl = document.getElementById('victoryModal');
+      const hudEl = document.getElementById('hudLayer');
+      const finishBtn = document.getElementById('btnFinishEndless');
+
+      if (victoryEl) {
+        victoryEl.classList.add('hidden');
+        victoryEl.style.display = '';
+      }
+      if (hudEl) hudEl.classList.remove('hidden');
+      if (finishBtn) finishBtn.classList.remove('hidden');
+
+      refillQuestionQueue();
+      distanceSinceLastGate = 0;
+      boostTimer = 1.5;
+      gameState = STATE.RUNNING;
+    }
+
+    function triggerVictory() {
+      if (victoryTimerId) {
+        clearTimeout(victoryTimerId);
+        victoryTimerId = null;
+      }
+      victoryTriggered = true;
+      gameState = STATE.VICTORY;
+
+      try {
+        const practiceEl = document.getElementById('practiceOverlay');
+        const toastEl = document.getElementById('celebrationToast');
+        const victoryEl = document.getElementById('victoryModal');
+
+        if (practiceEl) practiceEl.classList.add('hidden');
+        if (toastEl) toastEl.classList.add('hidden');
+
+        const totalQ = lessonData.questions.length;
+        const subEl = document.getElementById('victorySubtitle');
+        const scoreEl = document.getElementById('finalScore');
+        const streakEl = document.getElementById('finalStreak');
+        const masteredEl = document.getElementById('finalMastered');
+        const starsEl = document.getElementById('victoryStarsRow');
+
+        if (subEl) subEl.textContent = `You mastered all ${totalQ} "WAIT" sentences!`;
+        if (scoreEl) scoreEl.textContent = score;
+        if (streakEl) streakEl.textContent = bestStreak;
+        if (masteredEl) masteredEl.textContent = `${masteredIds.size} / ${totalQ}`;
+
+        // 1 to 3 star rating based on score
+        const starCount = score >= totalQ * 75 ? 3 : (score >= totalQ * 45 ? 2 : 1);
+        if (starsEl) starsEl.textContent = '⭐'.repeat(starCount);
+
+        if (victoryEl) {
+          victoryEl.classList.remove('hidden');
+          victoryEl.style.display = 'flex';
+          victoryEl.style.opacity = '1';
+          victoryEl.style.pointerEvents = 'auto';
+          victoryEl.style.zIndex = '9999';
+        }
+
+        spawnConfetti(width * 0.5, height * 0.4, 80);
+        sfxCorrect();
+      } catch (err) {
+        console.error('Victory screen error:', err);
+      }
+    }
+
+    function updateHUD() {
+      const sEl = document.getElementById('hudScore');
+      const stEl = document.getElementById('hudStreak');
+      const pEl = document.getElementById('hudProgress');
+      if (sEl) sEl.textContent = score;
+      if (stEl) stEl.textContent = streak;
+      if (pEl) pEl.textContent = `${masteredIds.size} / ${lessonData.questions.length}`;
+    }
+
+    // =========================================================================
+    // 7. PRACTICE GATE CHALLENGE TRIGGER & ANSWERING (2 PORTALS: HANG ON vs HOLD ON)
+    // =========================================================================
+    function populatePracticePrompt(q) {
+      if (!q) return;
+      const promptEng = document.getElementById('promptEnglish');
+      const parts = q.blankSentence.split('______');
+      const before = escapeHtml(parts[0] || '');
+      const after = escapeHtml(parts.slice(1).join('______') || '');
+      promptEng.innerHTML = `${before}<span class="inline-block bg-amber-100 border-b-4 border-amber-400 text-amber-700 px-4 py-0.5 rounded-xl">______</span>${after}`;
+
+      document.getElementById('promptChinese').textContent = q.chinese || '';
+
+      const feedback = document.getElementById('feedbackBanner');
+      feedback.classList.add('hidden');
+
+      // Update Speak Mode hint labels with current customizable choices
+      const micHint0 = document.getElementById('micHint0');
+      const micHint1 = document.getElementById('micHint1');
+      if (micHint0) micHint0.textContent = `"${formatPhraseExclaim(lessonData.choices[0].phrase)}"`;
+      if (micHint1) micHint1.textContent = `"${formatPhraseExclaim(lessonData.choices[1].phrase)}"`;
+
+      // Reset 2 choice button styles
+      [0, 1].forEach(i => {
+        const btn = document.getElementById(`choiceBtn${i}`);
+        btn.classList.remove('opacity-50', 'ring-4', 'ring-yellow-300', 'scale-105');
+      });
+    }
+
+    function triggerPracticeGate() {
+      if (questionQueue.length === 0) {
+        refillQuestionQueue();
+      }
+      currentQuestion = questionQueue.shift();
+
+      // Clear any regular obstacles near player so the gate feels clean & welcoming
+      entities = entities.filter(e => e.type === 'star');
+
+      // Spawn the visual 2-portal Practice Gate centered cleanly on the track
+      entities.push({
+        type: 'gate',
+        z: 0.22 // Near horizon, glides forward and stops cleanly in front of runner
+      });
+
+      populatePracticePrompt(currentQuestion);
+      syncAudioToggleUI();
+
+      document.getElementById('practiceOverlay').classList.remove('hidden');
+      document.getElementById('runningHelper').classList.add('hidden');
+
+      gameState = STATE.PRACTICE;
+      sfxGateAppear();
+
+      // Read the prompt sentence cleanly, then open the kid-friendly microphone!
+      if (speakAnswerMode) {
+        updateMicVisuals('waiting_tts', '🔊 Listen to the sentence first, then say your answer!');
+      }
+
+      setTimeout(() => {
+        if (gameState === STATE.PRACTICE && currentQuestion) {
+          const readablePrompt = formatPromptForSpeech(currentQuestion.blankSentence);
+          speakText(readablePrompt, () => {
+            if (gameState === STATE.PRACTICE && speakAnswerMode) {
+              startSpeechRecognition();
+            }
+          });
+        }
+      }, 300);
+    }
+
+    function speakCurrentPrompt() {
+      if (!currentQuestion) return;
+      stopSpeechRecognition();
+      const readablePrompt = formatPromptForSpeech(currentQuestion.blankSentence);
+      speakText(readablePrompt, () => {
+        if (gameState === STATE.PRACTICE && speakAnswerMode) {
+          startSpeechRecognition();
+        }
+      });
+    }
+
+    function submitAnswer(choiceIndex, answeredByVoice = false) {
+      if (gameState !== STATE.PRACTICE || !currentQuestion) return;
+
+      // Steer runner smoothly toward the chosen side (Left lane 0 for Option 0, Right lane 2 for Option 1)!
+      currentLane = choiceIndex === 0 ? 0 : 2;
+
+      const isCorrect = choiceIndex === currentQuestion.answerIndex;
+      const feedback = document.getElementById('feedbackBanner');
+
+      if (isCorrect) {
+        stopSpeechRecognition();
+        // CORRECT ANSWER — AWARD +50 BONUS POINTS (+ STREAK BONUS + SPEAKING BONUS)!
+        const chosenChoice = lessonData.choices[choiceIndex];
+        const completedSentence = buildFullSentence(currentQuestion.blankSentence, chosenChoice.phrase);
+
+        try {
+          sfxCorrect();
+          speakText(toSpokenEnglish(completedSentence));
+        } catch (e) {}
+
+        const bonusPoints = 50;
+        const speakingBonus = answeredByVoice ? 15 : 0;
+        const streakBonus = streak * 10;
+        const totalEarned = bonusPoints + speakingBonus + streakBonus;
+        score += totalEarned;
+        streak += 1;
+        if (streak > bestStreak) bestStreak = streak;
+        masteredIds.add(currentQuestion.id);
+        updateHUD();
+
+        // Spawn rainbow confetti & floating +50 BONUS popup!
+        spawnConfetti(width * 0.5, height * 0.52, 55);
+        const popupLabel = answeredByVoice
+          ? `🎤 GREAT SPEAKING! +${bonusPoints + speakingBonus}!`
+          : (streakBonus > 0 ? `+${bonusPoints} BONUS! (+${streakBonus} Streak)` : `+${bonusPoints} BONUS!`);
+        spawnScorePopup(
+          width * 0.5,
+          height * 0.46,
+          popupLabel,
+          '#10b981'
+        );
+
+        // Remove gate entity & clear currentQuestion
+        entities = entities.filter(e => e.type !== 'gate');
+        currentQuestion = null;
+
+        // Hide Practice Overlay
+        const practiceEl = document.getElementById('practiceOverlay');
+        const helperEl = document.getElementById('runningHelper');
+        if (practiceEl) practiceEl.classList.add('hidden');
+        if (helperEl) helperEl.classList.remove('hidden');
+
+        // Show Super Boost Toast
+        const toast = document.getElementById('celebrationToast');
+        const toastSent = document.getElementById('celebrationSentence');
+        const toastSub = document.getElementById('celebrationSubtext');
+        if (toastSent) toastSent.textContent = answeredByVoice ? `🎤 "${completedSentence}"` : `"${completedSentence}"`;
+        if (toastSub) {
+          toastSub.textContent = answeredByVoice
+            ? `+${bonusPoints} Bonus + ${speakingBonus} Speaking Bonus & Shield!`
+            : (streakBonus > 0
+                ? `+${bonusPoints} Bonus + ${streakBonus} Streak Points & Shield!`
+                : `+${bonusPoints} Bonus Points & Shield Active!`);
+        }
+        if (toast) {
+          toast.classList.remove('hidden');
+          setTimeout(() => {
+            if (toast) toast.classList.add('hidden');
+          }, 1800);
+        }
+
+        // Activate Super Boost & Invincibility Shield
+        boostTimer = 2.6;
+        distanceSinceLastGate = 0;
+
+        // Check if all custom/default sentences are mastered (and not yet in Endless Mode)
+        const allMastered = masteredIds.size >= lessonData.questions.length;
+        if (allMastered && !endlessMode) {
+          gameState = STATE.RUNNING; // Let runner celebrate briefly before victory screen
+          if (victoryTimerId) clearTimeout(victoryTimerId);
+          victoryTimerId = setTimeout(() => {
+            triggerVictory();
+          }, 750);
+        } else {
+          gameState = STATE.RUNNING;
+        }
+      } else {
+        // WRONG ANSWER — GENTLE ENCOURAGEMENT & -20 PENALTY POINTS (CLAMPED AT 0 MINIMUM)
+        sfxGentleOops();
+        const penalty = 20;
+        score = Math.max(0, score - penalty);
+        streak = 0;
+        hurtFlashTimer = 0.45;
+        updateHUD();
+
+        spawnScorePopup(width * 0.5, height * 0.48, `-${penalty} PENALTY!`, '#f43f5e');
+
+        const promptCard = document.getElementById('promptCard');
+        promptCard.classList.remove('animate-shake');
+        void promptCard.offsetWidth; // Trigger reflow for animation
+        promptCard.classList.add('animate-shake');
+
+        // Dim the wrong button gently
+        const wrongBtn = document.getElementById(`choiceBtn${choiceIndex}`);
+        wrongBtn.classList.add('opacity-50');
+
+        // Highlight the right portal hint
+        const rightIdx = currentQuestion.answerIndex;
+        const rightChoice = lessonData.choices[rightIdx];
+        const rightBtn = document.getElementById(`choiceBtn${rightIdx}`);
+        rightBtn.classList.add('ring-4', 'ring-yellow-300', 'scale-105');
+
+        feedback.className = 'mt-3 p-2.5 sm:p-3 rounded-2xl text-sm sm:text-base font-extrabold bg-amber-100 border-2 border-amber-400 text-amber-950 block';
+        feedback.innerHTML = `💛 Good try! (-20 pts) Hint: <span class="text-indigo-700">${escapeHtml(rightChoice.hint)}</span> — ${speakAnswerMode ? 'Say or tap' : 'Tap'} <span class="underline text-emerald-700">"${escapeHtml(formatPhraseExclaim(rightChoice.phrase))}"</span>!`;
+      }
+    }
+
+    // =========================================================================
+    // 8. PLAYER CONTROLS (TOUCH TAP LANES, SWIPE, KEYBOARD)
+    // =========================================================================
+    function moveLeft() {
+      if (gameState === STATE.PRACTICE) {
+        submitAnswer(0);
+        return;
+      }
+      if (gameState !== STATE.RUNNING) return;
+      if (currentLane > 0) {
+        currentLane--;
+        sfxSwitchLane();
+      }
+    }
+
+    function moveRight() {
+      if (gameState === STATE.PRACTICE) {
+        submitAnswer(1);
+        return;
+      }
+      if (gameState !== STATE.RUNNING) return;
+      if (currentLane < 2) {
+        currentLane++;
+        sfxSwitchLane();
+      }
+    }
+
+    function triggerJump() {
+      if (gameState !== STATE.RUNNING) return;
+      if (!isJumping) {
+        isJumping = true;
+        jumpVel = 620;
+        sfxJump();
+      }
+    }
+
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+      // Do not hijack typing inside Teacher Editor inputs
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+        return;
+      }
+
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        moveLeft();
+      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        moveRight();
+      } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') {
+        e.preventDefault();
+        if (gameState === STATE.RUNNING) {
+          triggerJump();
+        }
+      } else if (e.key === '1' && gameState === STATE.PRACTICE) {
+        submitAnswer(0);
+      } else if (e.key === '2' && gameState === STATE.PRACTICE) {
+        submitAnswer(1);
+      }
+    });
+
+    // Direct Canvas Tap (Left / Center / Right third of screen) + Swipe Support
+    canvas.addEventListener('pointerdown', (e) => {
+      if (gameState !== STATE.RUNNING && gameState !== STATE.PRACTICE) return;
+      touchStartX = e.clientX;
+      touchStartY = e.clientY;
+      touchStartTime = performance.now();
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      if (gameState === STATE.PRACTICE) {
+        // Tapping left half chooses Option 0; tapping right half chooses Option 1
+        if (e.clientX < width * 0.5) submitAnswer(0);
+        else submitAnswer(1);
+        return;
+      }
+      if (gameState !== STATE.RUNNING) return;
+      const dx = e.clientX - touchStartX;
+      const dy = e.clientY - touchStartY;
+      const dist = Math.hypot(dx, dy);
+
+      // Swipe detection
+      if (dist > 35) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          if (dx < 0) moveLeft();
+          else moveRight();
+        } else if (dy < -30) {
+          triggerJump();
+        }
+        return;
+      }
+
+      // Direct Smartboard / iPad Lane Tap!
+      // Dividing screen into 3 intuitive vertical tap zones: Left, Center, Right
+      const tapRatio = e.clientX / width;
+      let targetLane = 1;
+      if (tapRatio < 0.36) targetLane = 0;
+      else if (tapRatio > 0.64) targetLane = 2;
+      else targetLane = 1;
+
+      if (targetLane !== currentLane) {
+        currentLane = targetLane;
+        sfxSwitchLane();
+      } else {
+        // Tapping current lane triggers a cheerful hop!
+        triggerJump();
+      }
+    });
+
+    // =========================================================================
+    // 9. PSEUDO-3D PERSPECTIVE PROJECTION & ENTITY SPAWNING
+    // =========================================================================
+    // z = 0.0 is the far horizon; z = 1.0 is the player's feet line
+    function getPerspectiveMetrics() {
+      const horizonY = height * 0.30;
+      const playerZ = 0.86;
+      const groundBottomY = height * 1.02;
+
+      const roadHalfTop = Math.min(width * 0.13, 120);
+      const roadHalfBottom = Math.min(width * 0.46, 480);
+
+      return { horizonY, playerZ, groundBottomY, roadHalfTop, roadHalfBottom };
+    }
+
+    function projectZ(z, laneFloat) {
+      const { horizonY, groundBottomY, roadHalfTop, roadHalfBottom } = getPerspectiveMetrics();
+      // Non-linear perspective curve makes approaching objects feel fast & 3D
+      const p = Math.pow(z, 1.35);
+      const screenY = horizonY + (groundBottomY - horizonY) * p;
+      const halfWidth = roadHalfTop + (roadHalfBottom - roadHalfTop) * p;
+      const scale = 0.22 + 0.95 * p;
+
+      // laneFloat: 0 = left (-1), 1 = center (0), 2 = right (+1)
+      const laneOffset = (laneFloat - 1) * (halfWidth * 0.64);
+      const screenX = width * 0.5 + laneOffset;
+
+      return { screenX, screenY, halfWidth, scale };
+    }
+
+    function spawnInitialStars() {
+      for (let i = 0; i < 4; i++) {
+        entities.push({
+          type: 'star',
+          lane: 1,
+          z: 0.25 + i * 0.12
+        });
+      }
+    }
+
+    function spawnTrackWave() {
+      // Pick 1 lane for a cute obstacle (sometimes), and 1-2 lanes for collectible stars
+      const obstacleLane = Math.floor(Math.random() * 3);
+      const starLane = (obstacleLane + 1 + Math.floor(Math.random() * 2)) % 3;
+
+      // Spawn a trail of 3 stars
+      for (let i = 0; i < 3; i++) {
+        entities.push({
+          type: 'star',
+          lane: starLane,
+          z: 0.02 - i * 0.06
+        });
+      }
+
+      // Spawn a cute low obstacle (sleepy bear cushion or pastel toy block) that kids can dodge OR jump over
+      if (Math.random() < 0.72) {
+        const obsKinds = ['block', 'bear', 'cone'];
+        entities.push({
+          type: 'obstacle',
+          kind: obsKinds[Math.floor(Math.random() * obsKinds.length)],
+          lane: obstacleLane,
+          z: 0.02,
+          hit: false
+        });
+      }
+    }
+
+    function spawnConfetti(x, y, count = 30) {
+      const colors = ['#fb7185', '#38bdf8', '#34d399', '#fbbf24', '#a78bfa', '#f472b6'];
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 120 + Math.random() * 340;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 160,
+          size: 6 + Math.random() * 7,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rot: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 10,
+          life: 1.0
+        });
+      }
+    }
+
+    function spawnScorePopup(x, y, text, color) {
+      floatingPopups.push({
+        x,
+        y,
+        vy: -75,
+        text,
+        color,
+        life: 1.35,
+        maxLife: 1.35
+      });
+    }
+
+    // =========================================================================
+    // 10. MAIN UPDATE LOOP
+    // =========================================================================
+    let lastTimestamp = performance.now();
+
+    function update(dt) {
+      // Update clouds gently even on start screen
+      clouds.forEach(c => {
+        c.x += c.speed * dt;
+        if (c.x > width + 140) c.x = -140;
+      });
+
+      // Update confetti particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 650 * dt; // Gravity
+        p.rot += p.vRot * dt;
+        p.life -= dt * 0.85;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      // Update floating bonus/penalty score popups
+      for (let i = floatingPopups.length - 1; i >= 0; i--) {
+        const fp = floatingPopups[i];
+        fp.y += fp.vy * dt;
+        fp.vy *= 0.96;
+        fp.life -= dt;
+        if (fp.life <= 0) floatingPopups.splice(i, 1);
+      }
+
+      if (gameState === STATE.START) {
+        // Idle preview animation on start screen
+        roadScroll = (roadScroll + dt * 0.25) % 1;
+        runCycle += dt * 7;
+        return;
+      }
+
+      if (gameState === STATE.PAUSED || gameState === STATE.VICTORY) {
+        return;
+      }
+
+      // Failsafe: if all questions are mastered and not in endless mode, ensure Victory triggers cleanly!
+      if (!endlessMode && lessonData.questions.length > 0 && masteredIds.size >= lessonData.questions.length && !victoryTriggered && !victoryTimerId) {
+        triggerVictory();
+        return;
+      }
+
+      // Smoothly glide runner horizontally between lanes
+      visualLaneX += (currentLane - visualLaneX) * Math.min(1, dt * 16);
+
+      // Jump arc physics
+      if (isJumping) {
+        jumpY += jumpVel * dt;
+        jumpVel -= 1850 * dt;
+        if (jumpY <= 0) {
+          jumpY = 0;
+          jumpVel = 0;
+          isJumping = false;
+        }
+      }
+
+      if (boostTimer > 0) boostTimer -= dt;
+      if (hurtFlashTimer > 0) hurtFlashTimer -= dt;
+
+      // Determine forward Z-speed
+      let baseSpeed = speedMode === 'relaxed' ? 0.34 : 0.48;
+      if (boostTimer > 0) baseSpeed *= 1.55;
+      if (gameState === STATE.PRACTICE) baseSpeed = 0.04; // Slow-mo glide while answering!
+
+      roadScroll = (roadScroll + baseSpeed * dt * 2.2) % 1;
+      runCycle += dt * (gameState === STATE.PRACTICE ? 4 : (boostTimer > 0 ? 18 : 12));
+
+      // Move scenery trees
+      trees.forEach(t => {
+        t.z += baseSpeed * dt;
+        if (t.z > 1.05) {
+          t.z -= 1.05;
+        }
+      });
+
+      if (gameState === STATE.RUNNING) {
+        distanceSinceLastGate += baseSpeed * dt * 240;
+
+        // Time for a Practice Gate!
+        if (distanceSinceLastGate >= GATE_INTERVAL) {
+          triggerPracticeGate();
+          return;
+        }
+
+        // Spawn stars & cute obstacles periodically
+        spawnTimer -= baseSpeed * dt;
+        if (spawnTimer <= 0) {
+          spawnTrackWave();
+          spawnTimer = 0.52;
+        }
+      }
+
+      // Update Track Entities & Check Collisions at playerZ = 0.86
+      const playerZ = 0.86;
+      for (let i = entities.length - 1; i >= 0; i--) {
+        const ent = entities[i];
+        if (ent.type === 'gate') {
+          // Gate glides slowly forward to stop neatly in front of the runner
+          if (ent.z < 0.62) {
+            ent.z += 0.28 * dt;
+          }
+          continue;
+        }
+
+        ent.z += baseSpeed * dt;
+
+        // Check collision near runner's feet
+        if (Math.abs(ent.z - playerZ) < 0.055 && Math.abs(ent.lane - visualLaneX) < 0.42) {
+          if (ent.type === 'star') {
+            score += 15;
+            updateHUD();
+            sfxStarCollect();
+            const pos = projectZ(ent.z, ent.lane);
+            spawnConfetti(pos.screenX, pos.screenY - 30, 8);
+            entities.splice(i, 1);
+            continue;
+          } else if (ent.type === 'obstacle' && !ent.hit) {
+            // If jumping high enough or Super Boost shield is active, clear safely!
+            if (jumpY > 42 || boostTimer > 0) {
+              if (boostTimer > 0) {
+                // Smash obstacle cleanly during Super Boost!
+                const pos = projectZ(ent.z, ent.lane);
+                spawnConfetti(pos.screenX, pos.screenY - 25, 14);
+                entities.splice(i, 1);
+                continue;
+              }
+            } else {
+              // Gentle bump: deducts -10 obstacle penalty (min 0), resets streak, brief wobble
+              ent.hit = true;
+              const bumpPenalty = 10;
+              score = Math.max(0, score - bumpPenalty);
+              streak = 0;
+              hurtFlashTimer = 0.45;
+              updateHUD();
+              sfxBump();
+              const pos = projectZ(ent.z, ent.lane);
+              spawnScorePopup(pos.screenX, pos.screenY - 55, `-${bumpPenalty}`, '#f97316');
+            }
+          }
+        }
+
+        // Remove entities past camera
+        if (ent.z > 1.12) {
+          entities.splice(i, 1);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 11. CUTE VECTOR RENDERING ON CANVAS
+    // =========================================================================
+    function drawSkyAndBackground() {
+      // Bright pastel sky gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, height * 0.35);
+      skyGrad.addColorStop(0, '#60a5fa');
+      skyGrad.addColorStop(1, '#bae6fd');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, width, height * 0.35);
+
+      // Cheerful smiling sun in top-left corner
+      const sunX = width * 0.12;
+      const sunY = height * 0.11;
+      ctx.save();
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 34, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 26, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Fluffy pastel clouds
+      clouds.forEach(c => {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.scale(c.scale, c.scale);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 24, 0, Math.PI * 2);
+        ctx.arc(22, -6, 28, 0, Math.PI * 2);
+        ctx.arc(46, 0, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Rolling pastel hills at horizon
+      const { horizonY } = getPerspectiveMetrics();
+      ctx.fillStyle = '#86efac';
+      ctx.beginPath();
+      ctx.arc(width * 0.2, horizonY + 18, 140, Math.PI, 0);
+      ctx.arc(width * 0.52, horizonY + 12, 180, Math.PI, 0);
+      ctx.arc(width * 0.85, horizonY + 20, 150, Math.PI, 0);
+      ctx.fill();
+
+      // Lush pastel meadow grass below horizon
+      const grassGrad = ctx.createLinearGradient(0, horizonY, 0, height);
+      grassGrad.addColorStop(0, '#bbf7d0');
+      grassGrad.addColorStop(1, '#4ade80');
+      ctx.fillStyle = grassGrad;
+      ctx.fillRect(0, horizonY, width, height - horizonY);
+    }
+
+    function drawTrack() {
+      const { horizonY, groundBottomY, roadHalfTop, roadHalfBottom } = getPerspectiveMetrics();
+      const cx = width * 0.5;
+
+      // Track outer pastel border (candy pink/peach curb)
+      ctx.fillStyle = '#fda4af';
+      ctx.beginPath();
+      ctx.moveTo(cx - roadHalfTop - 10, horizonY);
+      ctx.lineTo(cx + roadHalfTop + 10, horizonY);
+      ctx.lineTo(cx + roadHalfBottom + 28, groundBottomY);
+      ctx.lineTo(cx - roadHalfBottom - 28, groundBottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Main 3-lane track surface (clean soft cream/lavender-white)
+      const roadGrad = ctx.createLinearGradient(0, horizonY, 0, groundBottomY);
+      roadGrad.addColorStop(0, '#f8fafc');
+      roadGrad.addColorStop(1, '#e2e8f0');
+      ctx.fillStyle = roadGrad;
+      ctx.beginPath();
+      ctx.moveTo(cx - roadHalfTop, horizonY);
+      ctx.lineTo(cx + roadHalfTop, horizonY);
+      ctx.lineTo(cx + roadHalfBottom, groundBottomY);
+      ctx.lineTo(cx - roadHalfBottom, groundBottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Subtle pastel tint on each of the 3 lanes (Pink | Sky | Mint)
+      const laneColors = [
+        'rgba(251, 113, 133, 0.12)',
+        'rgba(56, 189, 248, 0.12)',
+        'rgba(52, 211, 153, 0.12)'
+      ];
+      for (let lane = 0; lane < 3; lane++) {
+        const leftFrac = -1 + (lane * 2) / 3;
+        const rightFrac = -1 + ((lane + 1) * 2) / 3;
+        ctx.fillStyle = laneColors[lane];
+        ctx.beginPath();
+        ctx.moveTo(cx + roadHalfTop * leftFrac, horizonY);
+        ctx.lineTo(cx + roadHalfTop * rightFrac, horizonY);
+        ctx.lineTo(cx + roadHalfBottom * rightFrac, groundBottomY);
+        ctx.lineTo(cx + roadHalfBottom * leftFrac, groundBottomY);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Animated scrolling dashed lane dividers
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([22, 22]);
+      ctx.lineDashOffset = -roadScroll * 88;
+
+      [-1 / 3, 1 / 3].forEach(divFrac => {
+        ctx.beginPath();
+        ctx.moveTo(cx + roadHalfTop * divFrac, horizonY);
+        ctx.lineTo(cx + roadHalfBottom * divFrac, groundBottomY);
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+    }
+
+    function drawSceneryTrees() {
+      // Sort far to near
+      const sorted = [...trees].sort((a, b) => a.z - b.z);
+      sorted.forEach(t => {
+        const p = Math.pow(t.z, 1.35);
+        const { horizonY, groundBottomY, roadHalfTop, roadHalfBottom } = getPerspectiveMetrics();
+        const y = horizonY + (groundBottomY - horizonY) * p;
+        const halfW = roadHalfTop + (roadHalfBottom - roadHalfTop) * p;
+        const scale = 0.25 + 1.0 * p;
+        const x = width * 0.5 + t.side * (halfW + 65 * scale);
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        // Tree trunk
+        ctx.fillStyle = '#a16207';
+        ctx.fillRect(-7, -32, 14, 32);
+
+        // Cute fluffy lollipop canopy
+        ctx.fillStyle = t.color;
+        ctx.beginPath();
+        ctx.arc(0, -45, 26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.restore();
+      });
+    }
+
+    function drawStarEntity(ent) {
+      const { screenX, screenY, scale } = projectZ(ent.z, ent.lane);
+      const bob = Math.sin(runCycle * 0.8 + ent.z * 10) * 6 * scale;
+
+      ctx.save();
+      ctx.translate(screenX, screenY - 26 * scale + bob);
+      ctx.scale(scale, scale);
+
+      // Soft ground shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.beginPath();
+      ctx.ellipse(0, 26 - bob / scale, 16, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Golden cute star
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#ca8a04';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      const spikes = 5;
+      const outerR = 22;
+      const innerR = 10;
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI) / spikes - Math.PI / 2;
+        const sx = Math.cos(angle) * r;
+        const sy = Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cute star shine
+      ctx.fillStyle = '#fef9c3';
+      ctx.beginPath();
+      ctx.arc(-5, -5, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawObstacleEntity(ent) {
+      const { screenX, screenY, scale } = projectZ(ent.z, ent.lane);
+
+      ctx.save();
+      ctx.translate(screenX, screenY);
+      ctx.scale(scale, scale);
+
+      // Ground shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 32, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (ent.kind === 'block') {
+        // Cute pastel toy block
+        ctx.fillStyle = '#a78bfa';
+        ctx.strokeStyle = '#6d28d9';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(-28, -46, 56, 46, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        // Friendly letter "W" on block
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 26px Fredoka, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('ABC', 0, -15);
+      } else if (ent.kind === 'bear') {
+        // Cute sleepy plush bear barrier
+        ctx.fillStyle = '#fb923c';
+        ctx.strokeStyle = '#c2410c';
+        ctx.lineWidth = 3.5;
+        // Ears
+        ctx.beginPath();
+        ctx.arc(-20, -44, 11, 0, Math.PI * 2);
+        ctx.arc(20, -44, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // Head/body
+        ctx.beginPath();
+        ctx.roundRect(-28, -44, 56, 44, 22);
+        ctx.fill();
+        ctx.stroke();
+        // Snout
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.ellipse(0, -18, 14, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Sleepy eyes
+        ctx.strokeStyle = '#431407';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(-11, -27, 4, 0, Math.PI);
+        ctx.arc(11, -27, 4, 0, Math.PI);
+        ctx.stroke();
+      } else {
+        // Cute pastel traffic cone
+        ctx.fillStyle = '#f43f5e';
+        ctx.strokeStyle = '#be123c';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-24, 0);
+        ctx.lineTo(-8, -48);
+        ctx.quadraticCurveTo(0, -54, 8, -48);
+        ctx.lineTo(24, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // White stripe
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(-16, -18);
+        ctx.lineTo(16, -18);
+        ctx.lineTo(12, -30);
+        ctx.lineTo(-12, -30);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawPracticeGate(ent) {
+      const centerProj = projectZ(ent.z, 1);
+      const { screenX: centerX, screenY, halfWidth, scale } = centerProj;
+      const gateHeight = 104 * scale;
+
+      ctx.save();
+
+      // Symmetrical, balanced, non-overlapping portals centered around the middle of the track!
+      // Track spans [-halfWidth, +halfWidth] from centerX.
+      // Leaving a clean central divider gap (centerGap) so "Hang on!" and "Hold on!" never touch or overlap.
+      const centerGap = Math.max(14 * scale, halfWidth * 0.08);
+      const portalW = halfWidth * 0.86;
+      const panelH = Math.max(38, 56 * scale);
+
+      const c0Label = formatPhraseExclaim(lessonData.choices[0].phrase);
+      const c1Label = formatPhraseExclaim(lessonData.choices[1].phrase);
+
+      const gateConfigs = [
+        {
+          // Left portal positioned symmetrically left of track center
+          boxCenterX: centerX - centerGap * 0.5 - portalW * 0.5,
+          label: `👈 ${c0Label}`,
+          bg: '#fb7185',
+          border: '#ffe4e6'
+        },
+        {
+          // Right portal positioned symmetrically right of track center
+          boxCenterX: centerX + centerGap * 0.5 + portalW * 0.5,
+          label: `${c1Label} 👉`,
+          bg: '#38bdf8',
+          border: '#e0f2fe'
+        }
+      ];
+
+      gateConfigs.forEach(cfg => {
+        const leftX = cfg.boxCenterX - portalW * 0.5;
+
+        // Glowing translucent portal lane field
+        ctx.fillStyle = cfg.bg + '40';
+        ctx.beginPath();
+        ctx.roundRect(leftX, screenY - gateHeight, portalW, gateHeight, 12 * scale);
+        ctx.fill();
+
+        // Crisp, balanced signboard banner at top of portal
+        const bannerY = screenY - gateHeight - panelH * 0.35;
+        ctx.fillStyle = cfg.bg;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(2.5, 4 * scale);
+        ctx.beginPath();
+        ctx.roundRect(leftX, bannerY, portalW, panelH, 16 * scale);
+        ctx.fill();
+        ctx.stroke();
+
+        // Auto-fit font size so text never overflows portal width
+        let fontSize = Math.max(13, Math.round(20 * scale));
+        ctx.font = `900 ${fontSize}px Fredoka, sans-serif`;
+        const maxTextW = portalW * 0.88;
+        const measured = ctx.measureText(cfg.label).width;
+        if (measured > maxTextW && measured > 0) {
+          fontSize = Math.max(11, Math.floor(fontSize * (maxTextW / measured)));
+          ctx.font = `900 ${fontSize}px Fredoka, sans-serif`;
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cfg.label, cfg.boxCenterX, bannerY + panelH * 0.5);
+      });
+
+      ctx.restore();
+    }
+
+    function drawCuteRunner() {
+      const playerZ = 0.86;
+      const { screenX, screenY, scale } = projectZ(playerZ, visualLaneX);
+      const bob = isJumping ? 0 : Math.abs(Math.sin(runCycle)) * 10;
+      const tilt = (currentLane - visualLaneX) * 0.28;
+
+      ctx.save();
+      ctx.translate(screenX, screenY);
+
+      // Ground shadow (shrinks slightly when jumping)
+      const shadowScale = Math.max(0.45, 1 - jumpY / 220);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.22)';
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 34 * scale * shadowScale, 12 * scale * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Translate upward for jump & running bounce
+      ctx.translate(0, -jumpY - bob);
+      ctx.rotate(tilt);
+      ctx.scale(scale * 1.12, scale * 1.12);
+
+      // Super Boost Rainbow Invincibility Shield Aura
+      if (boostTimer > 0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.28)';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, -45, 58 + Math.sin(runCycle * 2) * 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Gentle wobble flash if bumped an obstacle
+      if (hurtFlashTimer > 0 && Math.floor(hurtFlashTimer * 20) % 2 === 0) {
+        ctx.globalAlpha = 0.55;
+      }
+
+      // Character color palette based on selectedChar
+      let mainColor = '#ffffff';
+      let earInner = '#fda4af';
+      let outfitColor = '#fb7185'; // Cute sporty hoodie/backpack
+      if (selectedChar === 'puppy') {
+        mainColor = '#fef3c7';
+        earInner = '#d97706';
+        outfitColor = '#38bdf8';
+      } else if (selectedChar === 'kitty') {
+        mainColor = '#ffffff';
+        earInner = '#f9a8d4';
+        outfitColor = '#c084fc';
+      } else if (selectedChar === 'chick') {
+        mainColor = '#fef08a';
+        earInner = '#fb923c';
+        outfitColor = '#4ade80';
+      }
+
+      // Little running feet
+      const leftFootY = Math.sin(runCycle) * 8;
+      const rightFootY = -Math.sin(runCycle) * 8;
+      ctx.fillStyle = selectedChar === 'chick' ? '#fb923c' : '#334155';
+      ctx.beginPath();
+      ctx.ellipse(-13, -6 + leftFootY, 10, 7, 0, 0, Math.PI * 2);
+      ctx.ellipse(13, -6 + rightFootY, 10, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cute Chibi Body / Hoodie
+      ctx.fillStyle = outfitColor;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(-22, -46, 44, 36, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      // Little school backpack strap / star emblem on back
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(0, -28, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ears / Wings / Sprout (drawn behind head)
+      ctx.fillStyle = mainColor;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 3.5;
+
+      if (selectedChar === 'bunny') {
+        // Long floppy-cute bunny ears
+        ctx.beginPath();
+        ctx.ellipse(-14, -95, 9, 24, -0.15, 0, Math.PI * 2);
+        ctx.ellipse(14, -95, 9, 24, 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = earInner;
+        ctx.beginPath();
+        ctx.ellipse(-14, -95, 4.5, 16, -0.15, 0, Math.PI * 2);
+        ctx.ellipse(14, -95, 4.5, 16, 0.15, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (selectedChar === 'puppy') {
+        // Floppy puppy ears
+        ctx.fillStyle = '#b45309';
+        ctx.beginPath();
+        ctx.ellipse(-28, -68, 10, 18, 0.35, 0, Math.PI * 2);
+        ctx.ellipse(28, -68, 10, 18, -0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (selectedChar === 'kitty') {
+        // Pointy Mimi Kitty ears (left white, right lavender calico)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(-26, -74);
+        ctx.lineTo(-22, -99);
+        ctx.lineTo(-6, -82);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#c084fc';
+        ctx.beginPath();
+        ctx.moveTo(26, -74);
+        ctx.lineTo(22, -99);
+        ctx.lineTo(6, -82);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (selectedChar === 'chick') {
+        // Cute flapping chick wings & sprout on top
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.ellipse(-26, -34, 8, 13, 0.4, 0, Math.PI * 2);
+        ctx.ellipse(26, -34, 8, 13, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -90);
+        ctx.lineTo(0, -101);
+        ctx.stroke();
+        ctx.fillStyle = '#4ade80';
+        ctx.beginPath();
+        ctx.ellipse(-7, -102, 7, 4, -0.4, 0, Math.PI * 2);
+        ctx.ellipse(7, -102, 7, 4, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Chibi Head
+      ctx.fillStyle = mainColor;
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, -64, 26, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Character-specific cute head details (Strawberry clip / Lavender bow)
+      if (selectedChar === 'bunny') {
+        ctx.fillStyle = '#fb7185';
+        ctx.beginPath();
+        ctx.arc(16, -83, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (selectedChar === 'kitty') {
+        // Lavender bow & whiskers
+        ctx.fillStyle = '#c084fc';
+        ctx.beginPath();
+        ctx.moveTo(15, -86);
+        ctx.lineTo(8, -91);
+        ctx.lineTo(8, -81);
+        ctx.closePath();
+        ctx.moveTo(15, -86);
+        ctx.lineTo(22, -91);
+        ctx.lineTo(22, -81);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-29, -62); ctx.lineTo(-20, -62);
+        ctx.moveTo(-29, -57); ctx.lineTo(-20, -58);
+        ctx.moveTo(29, -62); ctx.lineTo(20, -62);
+        ctx.moveTo(29, -57); ctx.lineTo(20, -58);
+        ctx.stroke();
+      }
+
+      // Rosy cheeks
+      ctx.fillStyle = 'rgba(251, 113, 133, 0.5)';
+      ctx.beginPath();
+      ctx.ellipse(-15, -58, 6, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(15, -58, 6, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Happy sparkling eyes
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(-10, -65, 4, 0, Math.PI * 2);
+      ctx.arc(10, -65, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White eye sparkles
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-11.5, -66.5, 1.6, 0, Math.PI * 2);
+      ctx.arc(8.5, -66.5, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cute happy smile or chick beak
+      if (selectedChar === 'chick') {
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath();
+        ctx.moveTo(-5, -59);
+        ctx.lineTo(5, -59);
+        ctx.lineTo(0, -52);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, -58, 5, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      // Draw rainbow confetti particles
+      particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.roundRect(-p.size * 0.5, -p.size * 0.3, p.size, p.size * 0.6, 3);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Draw floating +50 BONUS! / -20 PENALTY! score popups
+      floatingPopups.forEach(fp => {
+        ctx.save();
+        const alpha = Math.min(1, Math.max(0, fp.life / (fp.maxLife * 0.5)));
+        ctx.globalAlpha = alpha;
+        ctx.font = '900 24px Fredoka, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(fp.text, fp.x, fp.y);
+        ctx.fillStyle = fp.color;
+        ctx.fillText(fp.text, fp.x, fp.y);
+        ctx.restore();
+      });
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, width, height);
+
+      drawSkyAndBackground();
+      drawTrack();
+      drawSceneryTrees();
+
+      // Sort entities far-to-near (painter's algorithm)
+      const sortedEntities = [...entities].sort((a, b) => a.z - b.z);
+      sortedEntities.forEach(ent => {
+        if (ent.type === 'star') drawStarEntity(ent);
+        else if (ent.type === 'obstacle') drawObstacleEntity(ent);
+        else if (ent.type === 'gate') drawPracticeGate(ent);
+      });
+
+      drawCuteRunner();
+      drawParticles();
+    }
+
+    // =========================================================================
+    // 12. ANIMATION LOOP START ON WINDOW LOAD
+    // =========================================================================
+    function gameLoop(timestamp) {
+      const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+      lastTimestamp = timestamp;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = function () {
+      syncLessonUI();
+      syncAudioToggleUI();
+      resizeCanvas();
+      lastTimestamp = performance.now();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
